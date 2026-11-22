@@ -18,9 +18,9 @@ export function handleMenuKey(key: string, index: number, length: number): MenuA
   if (length === 0) return { action: key === 'Escape' ? 'close' : 'none', index: -1 };
   switch (key) {
     case 'ArrowDown':
-      return { action: 'move', index: (index + 1) % length };
+      return { action: 'move', index: index < 0 ? 0 : (index + 1) % length };
     case 'ArrowUp':
-      return { action: 'move', index: (index - 1 + length) % length };
+      return { action: 'move', index: index < 0 ? length - 1 : (index - 1 + length) % length };
     case 'Enter':
       return { action: 'select', index: index < 0 ? 0 : index };
     case 'Escape':

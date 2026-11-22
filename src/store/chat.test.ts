@@ -150,6 +150,7 @@ describe('store de chat', () => {
     scriptChat([]);
     useChatStore.getState().setModels([{ id: 'gemma3:4b', name: 'gemma3:4b', canThink: false }]);
     await useChatStore.getState().sendMessage('hola', 'gemma3:4b');
-    expect(ipcCalls()[0].args.think).toBe(false);
+    const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
+    expect(call.args.think).toBe(false);
   });
 });
