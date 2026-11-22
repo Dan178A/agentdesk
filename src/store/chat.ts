@@ -9,6 +9,12 @@ import {
   type SkillMeta,
   type SkillRaw,
 } from '../lib/skills';
+import {
+  hydrateHistory,
+  hydrateSettings,
+  serializeChats,
+  type Settings,
+} from '../lib/persist';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -26,6 +32,8 @@ export interface Chat {
   id: string;
   title: string;
   model: string;
+  projectId: string; // v1.1 (RF-15)
+  tokensUsed?: number; // v1.1 (RF-16)
   messages: ChatMessage[];
   createdAt: number;
   updatedAt: number;
@@ -36,6 +44,8 @@ function uid(): string {
     ? crypto.randomUUID()
     : `${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
+
+let saveTimer: number | null = null;
 
 /** Mensajes que van al modelo: system del skill activo + historial sin placeholder. */
 export function buildMessages(chat: Chat): ChatMsg[] {
@@ -66,6 +76,8 @@ interface ChatState {
   skillContent?: string;
   skillCatalog: MenuItem[];
   init: () => void;
+  loadPersisted: () => Promise<void>;
+  scheduleSave: () => void;
   loadSkills: () => Promise<void>;
   newChat: (model?: string) => string;
   setModels: (models: ModelUI[]) => void;
@@ -88,8 +100,27 @@ export const useChatStore = create<ChatState>((set, get) => ({
   skillCatalog: [],
 
   init: () => {
+    void get().loadPersisted();
     if (get().chats.length === 0) get().newChat();
     void get().loadSkills();
+  },
+
+  loadPersisted: async () => {
+    try {
+      const rawSettings = await invoke<string | null>('settings_load');
+      const settings: Settings = hydrateSettings(rawSettings);
+      useChatStore.setState({ ollamaUrl: settings.ollamaUrl, defaultModel: settings.defaultModel });
+      const rawHistory = await invoke<string | null>('history_load');
+      const chats = hydrateHistory(rawHistory);
+      if (chats.length > 0) {
+        useChatStore.setState((s) => ({
+          chats: [...chats, ...s.chats],
+          activeChatId: s.activeChatId ?? chats[0].id,
+        }));
+      }
+    } catch {
+      // persistencia no disponible: se sigue con el chat en memoria
+    }
   },
 
   loadSkills: async () => {
@@ -109,6 +140,7 @@ export const useChatStore = create<ChatState>((set, get) => ({
       id: uid(),
       title: 'Chat nuevo',
       model: model ?? get().defaultModel,
+      projectId: 'general',
       messages: [],
       createdAt: Date.now(),
       updatedAt: Date.now(),
@@ -194,6 +226,18 @@ export const useChatStore = create<ChatState>((set, get) => ({
       generationId: finished ? null : st.generationId,
       pendingStop: chunk.type === 'done' ? false : st.pendingStop,
     }));
+    if (finished) void get().scheduleSave();
+  },
+
+  scheduleSave: () => {
+    // Debounce 800ms: agrupar done/error y guardados seguidos
+    if (saveTimer !== null) clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      saveTimer = null;
+      void invoke('history_save', { data: serializeChats(useChatStore.getState().chats) }).catch(
+        () => undefined,
+      );
+    }, 800) as unknown as number;
   },
 
   setSkill: (dir, content) => set({ skillDir: dir, skillContent: content }),
