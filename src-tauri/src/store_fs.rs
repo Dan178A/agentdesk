@@ -56,3 +56,15 @@ pub fn projects_save(app: tauri::AppHandle, data: String) -> Result<(), String> 
 pub fn projects_load(app: tauri::AppHandle) -> Option<String> {
     read_json(&app, "projects.json")
 }
+
+/// Persiste equipos de agentes (Task 12).
+#[tauri::command]
+pub fn teams_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    write_json(&app, "teams.json", &data)
+}
+
+/// Carga equipos; None si no existen.
+#[tauri::command]
+pub fn teams_load(app: tauri::AppHandle) -> Option<String> {
+    read_json(&app, "teams.json")
+}

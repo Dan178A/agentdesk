@@ -17,7 +17,9 @@ pub fn run() {
             store_fs::settings_load,
             store_fs::app_dir,
             store_fs::projects_save,
-            store_fs::projects_load
+            store_fs::projects_load,
+            store_fs::teams_save,
+            store_fs::teams_load
         ])
         .run(tauri::generate_context!())
         .expect("error al correr agentdesk");

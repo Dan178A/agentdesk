@@ -3,16 +3,19 @@ import {
   Check,
   ChevronDown,
   FolderPlus,
+  MessageSquare,
   MessageSquarePlus,
   Moon,
   PanelLeftClose,
   Pencil,
   Sun,
   Trash2,
+  Users,
   X,
 } from 'lucide-react';
 import { useChatStore } from '../store/chat';
 import { useProjectsStore } from '../store/projects';
+import { useAgentsStore } from '../store/agents';
 import type { Chat } from '../store/chat';
 
 /** Sidebar: proyectos expandibles con sus chats; colapsable global. */
@@ -28,6 +31,8 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
   const createProject = useProjectsStore((s) => s.create);
   const removeProject = useProjectsStore((s) => s.remove);
   const toggleCollapse = useProjectsStore((s) => s.toggleCollapse);
+  const view = useAgentsStore((s) => s.view);
+  const setView = useAgentsStore((s) => s.setView);
 
   const [newProjectOpen, setNewProjectOpen] = useState(false);
   const [newProjectName, setNewProjectName] = useState('');
@@ -240,6 +245,32 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
 
       {/* Footer */}
       <div className="border-t border-border px-3 py-2.5">
+        <div className="mb-2 flex rounded-lg border border-border bg-bg p-0.5 text-sm" role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'chats'}
+            onClick={() => setView('chats')}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 transition-colors duration-200 ${
+              view === 'chats' ? 'bg-muted text-fg' : 'text-muted-fg hover:text-fg'
+            }`}
+          >
+            <MessageSquare size={14} aria-hidden />
+            Chats
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'agents'}
+            onClick={() => setView('agents')}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 transition-colors duration-200 ${
+              view === 'agents' ? 'bg-muted text-fg' : 'text-muted-fg hover:text-fg'
+            }`}
+          >
+            <Users size={14} aria-hidden />
+            Agentes
+          </button>
+        </div>
         <button
           type="button"
           onClick={toggleTheme}

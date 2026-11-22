@@ -2,9 +2,12 @@ import { useState } from 'react';
 import { PanelLeftOpen } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
+import { AgentsView } from './components/AgentsView';
+import { useAgentsStore } from './store/agents';
 
 export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const view = useAgentsStore((s) => s.view);
 
   return (
     <div className="flex h-screen overflow-hidden bg-bg text-fg">
@@ -19,7 +22,7 @@ export default function App() {
           <PanelLeftOpen size={16} aria-hidden />
         </button>
       )}
-      <ChatView />
+      {view === 'agents' ? <AgentsView /> : <ChatView />}
     </div>
   );
 }
