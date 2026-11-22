@@ -2,6 +2,13 @@ import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { streamChat, type ChatMsg, type Chunk } from '../lib/ollama';
 import type { ModelUI } from '../lib/models';
+import {
+  parseFrontmatter,
+  buildCatalog,
+  type MenuItem,
+  type SkillMeta,
+  type SkillRaw,
+} from '../lib/skills';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -57,7 +64,9 @@ interface ChatState {
   models: ModelUI[];
   skillDir?: string;
   skillContent?: string;
+  skillCatalog: MenuItem[];
   init: () => void;
+  loadSkills: () => Promise<void>;
   newChat: (model?: string) => string;
   setModels: (models: ModelUI[]) => void;
   sendMessage: (text: string, model: string) => Promise<void>;
@@ -76,9 +85,23 @@ export const useChatStore = create<ChatState>((set, get) => ({
   ollamaUrl: 'http://localhost:11434',
   defaultModel: 'glm-5.3-flash:cloud',
   models: [],
+  skillCatalog: [],
 
   init: () => {
     if (get().chats.length === 0) get().newChat();
+    void get().loadSkills();
+  },
+
+  loadSkills: async () => {
+    try {
+      const raws = await invoke<SkillRaw[]>('list_skills');
+      const metas = raws
+        .map(parseFrontmatter)
+        .filter((m): m is SkillMeta => m !== null);
+      set({ skillCatalog: buildCatalog(metas) });
+    } catch {
+      set({ skillCatalog: buildCatalog([]) }); // solo built-ins
+    }
   },
 
   newChat: (model) => {
