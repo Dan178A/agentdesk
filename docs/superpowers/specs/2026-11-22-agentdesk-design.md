@@ -105,9 +105,9 @@ agentdesk/
 
 | Comando | Parámetros | Retorna | Notas |
 |---|---|---|---|
-| `list_models` | — | `Model[] {id, name, alias?, capabilities[]}` | Consulta `GET /api/tags`; el Rust mapea alias y ordena (alias primero). `alias` solo para los 3 convenidos |
-| `list_skills` | — | `SkillMeta[] {dir, name, description}` | Escanea `~/.claude/skills/*/SKILL.md`, parsea frontmatter YAML mínimo (name, description); ignora directorios sin SKILL.md válido |
-| `read_skill` | `dir: string` | `{dir, name, description, content}` | Lee el SKILL.md completo. Valida que `dir` sea un hijo directo de `~/.claude/skills` (sin `..` ni rutas absolutas) |
+| `list_models` | — | `ModelRaw[] {id, name, capabilities[]}` | Consulta `GET /api/tags` y devuelve los modelos crudos; el TS aplica los alias de settings y ordena (alias primero) |
+| `list_skills` | — | `SkillRaw[] {dir, content}` | Escanea `~/.claude/skills/*/SKILL.md` y devuelve los primeros 8 KiB de cada uno; el TS parsea el frontmatter (`lib/skills.ts`, testeado) e ignora los inválidos |
+| `read_skill` | `dir: string` | `{dir, name, description, content}` | Lee el SKILL.md completo. Valida que `dir` sea un hijo directo de `~/.claude/skills` (sin `..` ni rutas absolutas); name/description los aporta el TS del content |
 | `chat_start` | `{id, model, messages, think}` | `void` (async) | Los chunks llegan por el Channel registrado; `id` identifica la sesión de chat para el routing |
 | `chat_stop` | `id: string` | `void` | Aborta el request en curso (guard + cancel) |
 | `history_list` / `history_save` / `history_delete` | — | — | JSON en `appDataDir/history.json` |
@@ -245,6 +245,7 @@ primitive → semantic → component; componentes solo referencian tokens semán
 | `--ring` | `#D97757` | `#D97757` |
 
 Tipografía: Inter (UI, 400/500/600/700), mono del sistema para código. Base 16px, line-height 1.5+.
+Idioma de la interfaz: español (todo el microcopy, labels y estados en español).
 
 ### Layout
 
@@ -283,7 +284,10 @@ Tipografía: Inter (UI, 400/500/600/700), mono del sistema para código. Base 16
 
 - **Vitest (unit, TS):**
   - `lib/skills.ts`: parse de frontmatter (con name/description, sin YAML completo, con YAML raro).
-  - `lib/ollama.ts`: parser de NDJSON (chunks thinking/content/done/error, líneas partidas).
+  - `src-tauri/src/ollama.rs` (cargo test): parser NDJSON — chunks
+    thinking/content/done/error y líneas partidas entre lecturas del socket.
+  - `lib/ollama.ts` (store): transición de estados ante chunks (generando →
+    done/error/stop; error no deja el chat colgado en "generando").
   - `lib/orchestrator.ts`: JSON válido → tareas; ```json con ruido; JSON malformado → retry;
     agente inexistente → retry → error con texto crudo.
   - `lib/markdown.ts`: código con lenguaje, sin lenguaje; copiar emite el texto correcto.
