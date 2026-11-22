@@ -153,4 +153,19 @@ describe('store de chat', () => {
     const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
     expect(call.args.think).toBe(false);
   });
+
+  it('deleteChat del activo activa otro chat', () => {
+    useChatStore.getState().newChat();
+    const active = useChatStore.getState().activeChatId!;
+    useChatStore.getState().deleteChat(active);
+    expect(useChatStore.getState().activeChatId).not.toBe(active);
+    expect(useChatStore.getState().chats.every((c) => c.id !== active)).toBe(true);
+  });
+
+  it('deleteChat del último chat crea uno nuevo', () => {
+    const only = useChatStore.getState().chats[0];
+    useChatStore.getState().deleteChat(only.id);
+    expect(useChatStore.getState().chats.length).toBe(1);
+    expect(useChatStore.getState().activeChatId).toBeTruthy();
+  });
 });

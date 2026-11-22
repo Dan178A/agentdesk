@@ -79,6 +79,8 @@ interface ChatState {
   loadPersisted: () => Promise<void>;
   scheduleSave: () => void;
   loadSkills: () => Promise<void>;
+  setActive: (id: string) => void;
+  deleteChat: (id: string) => void;
   newChat: (model?: string) => string;
   setModels: (models: ModelUI[]) => void;
   sendMessage: (text: string, model: string) => Promise<void>;
@@ -238,6 +240,22 @@ export const useChatStore = create<ChatState>((set, get) => ({
         () => undefined,
       );
     }, 800) as unknown as number;
+  },
+
+  setActive: (id) => {
+    const chat = get().chats.find((c) => c.id === id);
+    if (chat) set({ activeChatId: id });
+  },
+
+  deleteChat: (id) => {
+    set((s) => {
+      const chats = s.chats.filter((c) => c.id !== id);
+      const activeChatId =
+        s.activeChatId === id ? (chats[0]?.id ?? null) : s.activeChatId;
+      return { chats, activeChatId };
+    });
+    if (get().chats.length === 0) get().newChat();
+    void get().scheduleSave();
   },
 
   setSkill: (dir, content) => set({ skillDir: dir, skillContent: content }),

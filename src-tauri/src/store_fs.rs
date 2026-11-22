@@ -44,3 +44,15 @@ pub fn app_dir(app: tauri::AppHandle) -> Result<String, String> {
         .map(|p| p.to_string_lossy().into_owned())
         .map_err(|e| e.to_string())
 }
+
+/// Persiste proyectos (v1.1 RF-15).
+#[tauri::command]
+pub fn projects_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    write_json(&app, "projects.json", &data)
+}
+
+/// Carga proyectos; None si no existen.
+#[tauri::command]
+pub fn projects_load(app: tauri::AppHandle) -> Option<String> {
+    read_json(&app, "projects.json")
+}
