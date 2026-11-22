@@ -3,6 +3,8 @@ import { Send, Square, X } from 'lucide-react';
 import { useChatStore } from '../store/chat';
 import type { ModelUI } from '../lib/models';
 import { ModelPicker } from './ModelPicker';
+import { SlashMenu, executeSelection } from './SlashMenu';
+import type { MenuItem } from '../lib/skills';
 
 interface Props {
   models: ModelUI[];
@@ -19,6 +21,17 @@ export function ChatInput({ models, activeModel, onSelect }: Props) {
   const stopActive = useChatStore((s) => s.stopActive);
   const skillDir = useChatStore((s) => s.skillDir);
   const clearSkill = useChatStore((s) => s.clearSkill);
+  const [modelPickerRequest, setModelPickerRequest] = useState(0);
+
+  const slashOpen = text.startsWith('/');
+  const slashQuery = text.slice(1);
+
+  const onSlashSelect = async (item: MenuItem) => {
+    await executeSelection(item);
+    setText('');
+    if (textareaRef.current) textareaRef.current.style.height = 'auto';
+    if (item.builtin && item.name === 'model') setModelPickerRequest((n) => n + 1);
+  };
 
   const autoResize = () => {
     const el = textareaRef.current;
@@ -45,6 +58,13 @@ export function ChatInput({ models, activeModel, onSelect }: Props) {
   return (
     <div className="border-t border-border bg-bg px-6 py-4">
       <div className="mx-auto max-w-3xl">
+        {slashOpen && (
+          <SlashMenu
+            query={slashQuery}
+            onSelect={(item) => void onSlashSelect(item)}
+            onClose={() => setText('')}
+          />
+        )}
         {skillDir && (
           <div className="mb-2 flex justify-end">
             <span className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-fg">
@@ -74,7 +94,12 @@ export function ChatInput({ models, activeModel, onSelect }: Props) {
             aria-label="Mensaje para el modelo"
             className="max-h-50 flex-1 resize-none bg-transparent px-2.5 py-2 text-[15px] leading-relaxed outline-none placeholder:text-muted-fg"
           />
-          <ModelPicker models={models} selected={activeModel} onSelect={onSelect} />
+          <ModelPicker
+            models={models}
+            selected={activeModel}
+            onSelect={onSelect}
+            openRequest={modelPickerRequest}
+          />
           {isGenerating ? (
             <button
               type="button"

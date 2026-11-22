@@ -4,6 +4,12 @@ export interface SkillRaw {
   content: string;
 }
 
+/** Skill completo leído por read_skill (Rust). */
+export interface SkillFile {
+  dir: string;
+  content: string;
+}
+
 export interface SkillMeta {
   dir: string;
   name: string;

@@ -6,12 +6,18 @@ interface Props {
   models: ModelUI[];
   selected: string;
   onSelect: (id: string) => void;
+  /** Contador: al cambiar, abre el dropdown (para el comando /model). */
+  openRequest?: number;
 }
 
 /** Dropdown accesible de modelos (alias primero). */
-export function ModelPicker({ models, selected, onSelect }: Props) {
+export function ModelPicker({ models, selected, onSelect, openRequest = 0 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (openRequest > 0) setOpen(true);
+  }, [openRequest]);
 
   useEffect(() => {
     if (!open) return;
