@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+/* ── Tokens semánticos (spec §8) ─────────────────────────────── */
+:root {
+  --bg: #FAF9F5;
+  --surface: #FFFFFF;
+  --fg: #1F1E1D;
+  --muted: #F0EEE6;
+  --muted-fg: #6B6A65;
+  --primary: #D97757;
+  --primary-fg: #1F1E1D;
+  --border: #E5E1D8;
+  --error: #DC2626;
+  --ring: #D97757;
+}
+
+[data-theme="dark"] {
+  --bg: #1F1E1D;
+  --surface: #262624;
+  --fg: #F0EEE6;
+  --muted: #2F2F2C;
+  --muted-fg: #A8A79E;
+  --primary: #D97757;
+  --primary-fg: #1F1E1D;
+  --border: #3D3D3A;
+  --error: #F87171;
+  --ring: #D97757;
+}
+
+/* ── Tailwind v4: tokens como utilidades (bg-surface, text-muted-fg…) ── */
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-fg: var(--fg);
+  --color-muted: var(--muted);
+  --color-muted-fg: var(--muted-fg);
+  --color-primary: var(--primary);
+  --color-primary-fg: var(--primary-fg);
+  --color-border: var(--border);
+  --color-error: var(--error);
+  --color-ring: var(--ring);
+}
+
+/* ── Base ────────────────────────────────────────────────────── */
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Inter", system-ui, sans-serif;
+  font-size: 16px;
+  line-height: 1.5;
+}
+
+/* Focus ring visible en todo lo interactivo (spec §8 a11y) */
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}

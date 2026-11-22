@@ -239,7 +239,7 @@ primitive → semantic → component; componentes solo referencian tokens semán
 | `--muted` | `#F0EEE6` | `#2F2F2C` |
 | `--muted-fg` | `#6B6A65` | `#A8A79E` |
 | `--primary` | `#D97757` | `#D97757` |
-| `--primary-fg` | `#FFFFFF` | `#1F1E1D` |
+| `--primary-fg` | `#1F1E1D` | `#1F1E1D` |
 | `--border` | `#E5E1D8` | `#3D3D3A` |
 | `--error` | `#DC2626` | `#F87171` |
 | `--ring` | `#D97757` | `#D97757` |
