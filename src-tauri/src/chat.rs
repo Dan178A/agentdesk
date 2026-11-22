@@ -14,7 +14,12 @@ pub enum StreamChunk {
     #[serde(rename = "content")]
     Content { id: String, delta: String },
     #[serde(rename = "done")]
-    Done { id: String, thinking_ms: u64 },
+    Done {
+        id: String,
+        thinking_ms: u64,
+        prompt_tokens: u64,
+        completion_tokens: u64,
+    },
     #[serde(rename = "error")]
     Error { id: String, message: String },
 }
@@ -38,7 +43,7 @@ pub struct LineBuf {
 pub enum LineEvent {
     Thinking { delta: String },
     Content { delta: String },
-    Done,
+    Done { prompt_tokens: u64, completion_tokens: u64 },
 }
 
 /// Parsea bytes del stream NDJSON; emite eventos por línea completa y
@@ -66,7 +71,15 @@ pub fn parse_ndjson(state: &mut LineBuf, bytes: &[u8], out: &mut Vec<LineEvent>)
             }
         }
         if v.get("done").and_then(|x| x.as_bool()) == Some(true) {
-            out.push(LineEvent::Done);
+            let prompt_tokens = v
+                .get("prompt_eval_count")
+                .and_then(|x| x.as_u64())
+                .unwrap_or(0);
+            let completion_tokens = v.get("eval_count").and_then(|x| x.as_u64()).unwrap_or(0);
+            out.push(LineEvent::Done {
+                prompt_tokens,
+                completion_tokens,
+            });
         }
     }
 }
@@ -137,6 +150,7 @@ pub async fn chat_start(
         let mut pending: Vec<StreamChunk> = Vec::new();
         let mut last_flush = Instant::now();
         let mut done_sent = false;
+        let mut final_tokens = (0u64, 0u64);
 
         while let Some(chunk) = stream.next().await {
             if cancel.load(Ordering::Relaxed) {
@@ -155,7 +169,11 @@ pub async fn chat_start(
                         id: id.clone(),
                         delta,
                     }),
-                    LineEvent::Done => {
+                    LineEvent::Done {
+                        prompt_tokens,
+                        completion_tokens,
+                    } => {
+                        final_tokens = (prompt_tokens, completion_tokens);
                         done_sent = true;
                         break;
                     }
@@ -180,6 +198,8 @@ pub async fn chat_start(
         let _ = on_chunk.send(StreamChunk::Done {
             id: id.clone(),
             thinking_ms: started.elapsed().as_millis() as u64,
+            prompt_tokens: final_tokens.0,
+            completion_tokens: final_tokens.1,
         });
         Ok::<(), String>(())
     }
@@ -251,7 +271,33 @@ mod tests {
                 LineEvent::Content {
                     delta: "final".to_string()
                 },
-                LineEvent::Done,
+                LineEvent::Done {
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                },
+            ]
+        );
+    }
+
+    #[test]
+    fn ndjson_done_extrae_tokens_reales() {
+        let mut state = LineBuf::default();
+        let mut out = Vec::new();
+        parse_ndjson(
+            &mut state,
+            b"{\"message\":{\"content\":\"fin\"},\"done\":true,\"prompt_eval_count\":120,\"eval_count\":8}\n",
+            &mut out,
+        );
+        assert_eq!(
+            out,
+            vec![
+                LineEvent::Content {
+                    delta: "fin".to_string()
+                },
+                LineEvent::Done {
+                    prompt_tokens: 120,
+                    completion_tokens: 8,
+                },
             ]
         );
     }

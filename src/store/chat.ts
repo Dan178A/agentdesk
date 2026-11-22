@@ -81,6 +81,7 @@ interface ChatState {
   loadSkills: () => Promise<void>;
   setActive: (id: string) => void;
   deleteChat: (id: string) => void;
+  retryLast: () => Promise<void>;
   newChat: (model?: string) => string;
   setModels: (models: ModelUI[]) => void;
   sendMessage: (text: string, model: string) => Promise<void>;
@@ -222,7 +223,15 @@ export const useChatStore = create<ChatState>((set, get) => ({
         }
         if (chunk.type === 'error') m.error = chunk.message;
         msgs[i] = m;
-        return { ...c, messages: msgs, updatedAt: Date.now() };
+        return {
+          ...c,
+          messages: msgs,
+          tokensUsed:
+            chunk.type === 'done'
+              ? (chunk.promptTokens ?? 0) + (chunk.completionTokens ?? 0)
+              : c.tokensUsed,
+          updatedAt: Date.now(),
+        };
       }),
       isGenerating: !finished,
       generationId: finished ? null : st.generationId,
@@ -256,6 +265,30 @@ export const useChatStore = create<ChatState>((set, get) => ({
     });
     if (get().chats.length === 0) get().newChat();
     void get().scheduleSave();
+  },
+
+  retryLast: async () => {
+    const s = get();
+    if (s.isGenerating) return;
+    const chat = s.chats.find((c) => c.id === s.activeChatId);
+    if (!chat) return;
+    let lastUserIdx = -1;
+    for (let i = chat.messages.length - 1; i >= 0; i--) {
+      if (chat.messages[i].role === 'user') {
+        lastUserIdx = i;
+        break;
+      }
+    }
+    if (lastUserIdx === -1) return;
+    const userContent = chat.messages[lastUserIdx].content;
+    set((st) => ({
+      chats: st.chats.map((c) =>
+        c.id === chat.id
+          ? { ...c, messages: c.messages.slice(0, lastUserIdx), updatedAt: Date.now() }
+          : c,
+      ),
+    }));
+    await get().sendMessage(userContent, chat.model);
   },
 
   setSkill: (dir, content) => set({ skillDir: dir, skillContent: content }),

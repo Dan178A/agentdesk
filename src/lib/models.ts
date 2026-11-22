@@ -3,6 +3,7 @@ export interface ModelRaw {
   id: string;
   name: string;
   capabilities: string[];
+  contextLength?: number;
 }
 
 /** Modelo listo para UI, con alias y capability de thinking resuelta. */
@@ -11,6 +12,7 @@ export interface ModelUI {
   name: string;
   alias?: string;
   canThink: boolean;
+  contextLength?: number;
 }
 
 /** Alias default del spec §5 (configurables en settings). Orden de inserción = orden en el selector. */
@@ -33,6 +35,7 @@ export function parseModels(raw: ModelRaw[], aliases: Record<string, string>): M
         name: model.name,
         alias,
         canThink: canThink(model),
+        contextLength: model.contextLength,
       });
       usedIds.add(model.id);
     }
@@ -40,7 +43,12 @@ export function parseModels(raw: ModelRaw[], aliases: Record<string, string>): M
 
   const rest: ModelUI[] = raw
     .filter((m) => !usedIds.has(m.id))
-    .map((m) => ({ id: m.id, name: m.name, canThink: canThink(m) }))
+    .map((m) => ({
+      id: m.id,
+      name: m.name,
+      canThink: canThink(m),
+      contextLength: m.contextLength,
+    }))
     .sort((a, b) => a.id.localeCompare(b.id));
 
   return [...aliased, ...rest];

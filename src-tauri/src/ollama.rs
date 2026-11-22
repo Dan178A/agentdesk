@@ -7,6 +7,8 @@ pub struct ModelRaw {
     pub id: String,
     pub name: String,
     pub capabilities: Vec<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub context_length: Option<u64>,
 }
 
 #[derive(Deserialize)]
@@ -19,6 +21,14 @@ struct TagsModel {
     name: String,
     #[serde(default)]
     capabilities: Vec<String>,
+    #[serde(default)]
+    details: Option<TagsDetails>,
+}
+
+#[derive(Deserialize)]
+struct TagsDetails {
+    #[serde(default)]
+    context_length: Option<u64>,
 }
 
 /// Lista los modelos del servidor Ollama. Mensajes de error en español (spec §9).
@@ -39,6 +49,7 @@ pub async fn list_models(ollama_url: String) -> Result<Vec<ModelRaw>, String> {
             id: m.name.clone(),
             name: m.name,
             capabilities: m.capabilities,
+            context_length: m.details.and_then(|d| d.context_length),
         })
         .collect())
 }

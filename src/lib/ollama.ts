@@ -4,7 +4,13 @@ import { invoke, Channel } from '@tauri-apps/api/core';
 export type Chunk =
   | { type: 'thinking'; id: string; delta: string }
   | { type: 'content'; id: string; delta: string }
-  | { type: 'done'; id: string; thinkingMs: number }
+  | {
+      type: 'done';
+      id: string;
+      thinkingMs: number;
+      promptTokens?: number;
+      completionTokens?: number;
+    }
   | { type: 'error'; id: string; message: string };
 
 /** Mensaje que viaja a Ollama. */

@@ -5,6 +5,7 @@ import { parseModels, DEFAULT_ALIASES, type ModelRaw, type ModelUI } from '../li
 import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { ErrorBanner } from './ErrorBanner';
+import { ContextMeter } from './ContextMeter';
 
 /** Vista central del chat: mensajes + input con modelos. */
 export function ChatView() {
@@ -19,6 +20,7 @@ export function ChatView() {
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState('glm-5.3-flash:cloud');
   const scrollRef = useRef<HTMLDivElement>(null);
+  const retryLast = useChatStore((s) => s.retryLast);
 
   const loadModels = async () => {
     setModelsError(null);
@@ -50,8 +52,11 @@ export function ChatView() {
 
   if (!chat) return <div className="flex-1" />;
 
+  const activeModelInfo = models.find((m) => m.id === activeModel);
+
   return (
     <div className="flex h-screen min-w-0 flex-1 flex-col bg-bg text-fg">
+      <ContextMeter used={chat.tokensUsed} limit={activeModelInfo?.contextLength} />
       {modelsError && <ErrorBanner message={modelsError} onRetry={() => void loadModels()} />}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
@@ -69,6 +74,8 @@ export function ChatView() {
               key={m.createdAt + i}
               message={m}
               isGenerating={isGenerating && i === chat.messages.length - 1}
+              isLast={i === chat.messages.length - 1}
+              onRetry={() => void retryLast()}
             />
           ))}
         </div>

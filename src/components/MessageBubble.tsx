@@ -2,7 +2,7 @@ import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { CircleAlert, Sparkles, Square } from 'lucide-react';
+import { CircleAlert, RefreshCw, Sparkles, Square } from 'lucide-react';
 import type { ChatMessage } from '../store/chat';
 import { ThinkingPanel } from './ThinkingPanel';
 import { CodeBlock } from './CodeBlock';
@@ -11,9 +11,13 @@ import { CodeBlock } from './CodeBlock';
 export const MessageBubble = memo(function MessageBubble({
   message,
   isGenerating,
+  isLast,
+  onRetry,
 }: {
   message: ChatMessage;
   isGenerating: boolean;
+  isLast?: boolean;
+  onRetry?: () => void;
 }) {
   if (message.role === 'user') {
     return (
@@ -55,10 +59,20 @@ export const MessageBubble = memo(function MessageBubble({
           </div>
         )}
         {message.error && (
-          <p role="alert" className="mt-2 flex items-center gap-2 text-sm text-error">
+          <div role="alert" className="mt-2 flex items-center gap-2 text-sm text-error">
             <CircleAlert size={15} aria-hidden />
             {message.error}
-          </p>
+            {isLast && onRetry && (
+              <button
+                type="button"
+                onClick={onRetry}
+                className="flex items-center gap-1 rounded-lg border border-error/40 px-2 py-0.5 text-xs font-medium transition-colors duration-200 hover:bg-error/10"
+              >
+                <RefreshCw size={12} aria-hidden />
+                Reintentar
+              </button>
+            )}
+          </div>
         )}
         {message.stopped && (
           <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-fg">

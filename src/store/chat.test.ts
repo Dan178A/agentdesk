@@ -168,4 +168,32 @@ describe('store de chat', () => {
     expect(useChatStore.getState().chats.length).toBe(1);
     expect(useChatStore.getState().activeChatId).toBeTruthy();
   });
+
+  it('(v1.1) done con tokens reales setea chat.tokensUsed', async () => {
+    scriptChat([
+      { type: 'content', id: 'x', delta: 'respuesta' },
+      { type: 'done', id: 'x', thinkingMs: 10, promptTokens: 120, completionTokens: 8 },
+    ]);
+    await useChatStore.getState().sendMessage('hola', MODEL);
+    expect(useChatStore.getState().chats[0].tokensUsed).toBe(128);
+  });
+
+  it('(v1.1) retryLast elimina el assistant fallido y reenvía el user', async () => {
+    scriptChat([{ type: 'error', id: 'x', message: 'conexión caída' }]);
+    await useChatStore.getState().sendMessage('hola', MODEL);
+    expect(useChatStore.getState().isGenerating).toBe(false);
+
+    // segunda generación: exitosa
+    scriptChat([
+      { type: 'content', id: 'x', delta: 'regenerado' },
+      { type: 'done', id: 'x', thinkingMs: 1 },
+    ]);
+    await useChatStore.getState().retryLast();
+    const chat = useChatStore.getState().chats[0];
+    // quedó: user + assistant regenerado (sin el fallido duplicado)
+    expect(chat.messages.length).toBe(2);
+    expect(countCalls('chat_start')).toBe(2);
+    expect(chat.messages[0].role).toBe('user');
+    expect(chat.messages[1].content).toBe('regenerado');
+  });
 });
