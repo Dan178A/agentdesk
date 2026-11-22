@@ -287,10 +287,10 @@ Run: `npm test` → FAIL. Implementar `store/chat.ts` + `lib/ollama.ts`. Run →
 
 ---
 
-### Task 11: Sidebar (lista de chats, renombrar, borrar)
+### Task 11: Sidebar (proyectos + chats, expandible/colapsable) — extendida v1.1 (RF-15)
 
 **Files:**
-- Create: `src/components/Sidebar.tsx`
+- Create: `src/components/Sidebar.tsx`, `src/store/projects.ts`
 - Modify: `src/store/chat.ts` (`renameChat(id, title)`, `deleteChat(id)`, `setActive(id)`, `autoTitle` ya en Task 5)
 
 **Interfaces:**
@@ -381,6 +381,29 @@ system: `Eres un orquestador de agentes. Divides una meta en subtareas y las asi
 - [ ] **Step 3: `npm run tauri build`** → Expected: compila el binario release (si falla por MSRV: `rustup update` y reintentar — riesgo §12).
 
 - [ ] **Step 4: Commit final** `chore: pulido de accesibilidad y verificación e2e`
+
+---
+
+### Task 16: Panel de contexto con tokens reales + retry por mensaje (v1.1, RF-16/17)
+
+**Files:**
+- Modify: `src-tauri/src/chat.rs` (done extrae `prompt_eval_count`/`eval_count`), `src-tauri/src/ollama.rs` (ModelRaw + contextLength), `src/lib/ollama.ts` (Chunk done + tokens), `src/lib/models.ts` (ModelRaw/UI + contextLength), `src/store/chat.ts` (tokensUsed del done + `retryLast()`), `src/components/ContextMeter.tsx` (nuevo), `src/components/MessageBubble.tsx` (botón Reintentar), `src/components/ChatView.tsx` (meter en header)
+- Test: `src-tauri/src/chat.rs` (done extrae tokens), `src/store/chat.test.ts` (done setea tokensUsed; retryLast reenvía)
+
+**Interfaces:**
+- Produce: `ContextMeter({ used, limit })` — barra fina con % y texto `12.4k / 1M (1%)`; ámbar ≥80%, rojo ≥95% con texto «cerca del límite — usa /clear o un chat nuevo»; `retryLast()` del store.
+
+- [ ] **Step 1 (TDD):** test Rust: línea done con `prompt_eval_count:120, eval_count:8` → `LineEvent::Done` lleva tokens (extender el enum: `Done { promptTokens: u64, completionTokens: u64 }`, default 0 cuando no vienen). RED → implementar en `parse_ndjson` → GREEN.
+- [ ] **Step 2 (TDD):** tests TS: (a) chunk done con tokens → `chat.tokensUsed = 120+8`; (b) `retryLast()` elimina el assistant con error tras el último user y llama `chat_start` de nuevo. RED → implementar → GREEN.
+- [ ] **Step 3:** `ContextMeter` con umbrales 80/95 y colores por token (border/amber/error); en ChatView header: `used = chat.tokensUsed`, `limit = model.contextLength` (fallback 1M si undefined).
+- [ ] **Step 4:** Botón «Reintentar» en MessageBubble cuando `message.error` → `retryLast()`.
+- [ ] **Step 5:** Manual con modelo real (ver el meter subir tras responder). Commit `feat: panel de contexto con tokens reales y retry por mensaje`.
+
+---
+
+### Task 17: Proyectos (v1.1, RF-15) — detalle en Task 11 extendida
+
+`Project {id, name}` con default `general`; `Chat.projectId`; sidebar agrupa chats por proyecto (secciones colapsables); crear/renombrar/eliminar proyecto (mover chats del eliminado a General); persistencia junto al historial. Tests del store de proyectos en `src/store/projects.test.ts`.
 
 ---
 

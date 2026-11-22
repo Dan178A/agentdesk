@@ -46,6 +46,9 @@ gemma4, minimax-m2.5, gemma3, nimble).
 | RF-12 | Stop: abortar la generación en curso |
 | RF-13 | Dark/light mode (default: sigue al sistema) |
 | RF-14 | Detección de Ollama caído con banner instructivo + reintentar |
+| RF-15 | Sidebar expandible/colapsable (260px ↔ 0, animación 200ms) con **proyectos**: agrupaciones nominales de chats (default «General»); crear/renombrar/eliminar proyecto; cada chat pertenece a uno (v1.1, pedido del usuario) |
+| RF-16 | Panel de contexto estilo Claude Code: tokens usados / restantes / % del límite del modelo (`context_length` de /api/tags); usa los `prompt_eval_count` + `eval_count` reales del chunk final de Ollama; aviso ámbar ≥80%, rojo ≥95% con sugerencia de /clear o chat nuevo (v1.1) |
+| RF-17 | Botón «Reintentar» en cada mensaje con error (reenvía el último user del chat) además del Reintentar del banner de Ollama (v1.1) |
 
 ## 3. No-objetivos (v1)
 
@@ -105,7 +108,7 @@ agentdesk/
 
 | Comando | Parámetros | Retorna | Notas |
 |---|---|---|---|
-| `list_models` | — | `ModelRaw[] {id, name, capabilities[]}` | Consulta `GET /api/tags` y devuelve los modelos crudos; el TS aplica los alias de settings y ordena (alias primero) |
+| `list_models` | — | `ModelRaw[] {id, name, capabilities[], contextLength}` | Consulta `GET /api/tags` (contextLength = details.context_length) y devuelve los modelos crudos; el TS aplica los alias de settings y ordena (alias primero) |
 | `list_skills` | — | `SkillRaw[] {dir, content}` | Escanea `~/.claude/skills/*/SKILL.md` y devuelve los primeros 8 KiB de cada uno; el TS parsea el frontmatter (`lib/skills.ts`, testeado) e ignora los inválidos |
 | `read_skill` | `dir: string` | `{dir, name, description, content}` | Lee el SKILL.md completo. Valida que `dir` sea un hijo directo de `~/.claude/skills` (sin `..` ni rutas absolutas); name/description los aporta el TS del content |
 | `chat_start` | `{id, model, messages, think}` | `void` (async) | Los chunks llegan por el Channel registrado; `id` identifica la sesión de chat para el routing |
@@ -120,9 +123,11 @@ agentdesk/
 type StreamChunk =
   | { type: 'thinking'; id: string; delta: string }
   | { type: 'content';  id: string; delta: string }
-  | { type: 'done';     id: string; thinkingMs: number }
+  | { type: 'done';     id: string; thinkingMs: number; promptTokens?: number; completionTokens?: number }
   | { type: 'error';    id: string; message: string };
 ```
+
+- El `done` extrae `prompt_eval_count` y `eval_count` del JSON final de Ollama (tokens reales del turno); `tokensUsed` del chat = `promptTokens + completionTokens` del último done (v1.1).
 
 - Un `chat_start` corresponde a una generación (un "turno" de un chat o de un agente); `id` es
   un UUID por generación.
@@ -154,9 +159,15 @@ interface Chat {
   id: string;
   title: string;            // autogenerado con el primer mensaje (primeras ~40 chars)
   model: string;            // modelo actual del chat
+  projectId: string;        // proyecto al que pertenece (default 'general', RF-15)
+  tokensUsed?: number;      // tokens del último done (RF-16)
   skill?: string;           // skill activo
   messages: ChatMessage[];
   createdAt: number; updatedAt: number;
+}
+
+interface Project {           // v1.1 (RF-15)
+  id: string; name: string;   // default: { id: 'general', name: 'General' }
 }
 
 interface Agent {
