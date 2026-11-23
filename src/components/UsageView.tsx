@@ -58,7 +58,7 @@ export function UsageView() {
             remaining={summary.weekRemaining}
             pct={summary.weekPct}
             budget={weekBudget}
-            note="Semana móvil; los presupuestos son editables en settings.json"
+            note="Semana móvil; presupuestos editables en usage.json (sessionBudget/weekBudget)"
           />
         </section>
 
@@ -170,7 +170,7 @@ function BudgetCard({
           {pct >= 95 && <TriangleAlert size={12} aria-hidden />}
           {remaining > 0
             ? `quedan ${formatTokens(remaining)}`
-            : 'presupuesto agotado — sube el límite en settings.json'}
+            : 'presupuesto agotado — sube el límite en usage.json'}
         </p>
         {note && <p className="mt-1 text-[10px] text-muted-fg">{note}</p>}
       </div>

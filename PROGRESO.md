@@ -1,6 +1,6 @@
 # AgentDesk — Progreso del proyecto
 
-**Fecha de estado:** 2026-11-22 · **Versión:** 0.2.0 (v2.0 Workbench) · **Rama:** `feature/agentdesk`
+**Fecha de estado:** 2026-11-22 · **Versión:** 0.2.1 (v2.0 Workbench + medidor de uso) · **Rama:** `feature/agentdesk`
 
 ## ¿Qué es?
 
@@ -52,8 +52,9 @@ npm run tauri build  # release
 | 19 | **v2.0** Panel de vista previa lateral (HTML iframe, md, CSV, imágenes) | ✅ |
 | 20 | **v2.0** Adjuntar archivos (plugin dialog + read/write_file en Rust) | ✅ |
 | 21 | **v2.0** Creador de interfaces `/interfaz` con auto-open en el panel | ✅ |
+| 22 | **v2.1** Medidor de uso: anillos sesión/semana en la barra + dashboard con top modelos y días | ✅ |
 
-**Tests:** 109/109 TS (Vitest) · 18/18 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 123/123 TS (Vitest) · 18/18 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -70,6 +71,11 @@ npm run tauri build  # release
   las imágenes abren en el panel (límite 50 MB, extensiones de texto/código/imágenes)
 - ✅ **`/interfaz`** (v2.0): el modelo genera un HTML completo y el panel lo muestra live con
   un click; auto-open al terminar la generación
+- ✅ **Medidor de uso** (v2.1): dos anillos en la barra del chat (sesión y semana móvil, ámbar ≥80%,
+  rojo ≥95%) con clic al dashboard; pestaña **Uso** con presupuesto restante, modelos más usados
+  (con turno y barras) y distribución por día. Cada `done` de chat y de agente registra
+  `prompt + completion` tokens en `usage.json`; presupuestos default 500k sesión / 2M semana
+  (editables en `usage.json` con `sessionBudget`/`weekBudget`)
 - ✅ **Meter de contexto**: barra de tokens usados/total (límite real del modelo), ámbar ≥80%, rojo ≥95%
 - ✅ Botón **Reintentar** en mensajes caídos (reenvía el último mensaje) y en el banner de Ollama caído
 - ✅ Sidebar expandible/colapsable con **proyectos**, chats por proyecto, tema claro/oscuro
