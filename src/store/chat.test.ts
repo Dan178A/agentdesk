@@ -2,6 +2,7 @@ import '../test/mock-ipc';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useChatStore, buildMessages } from '../store/chat';
 import { usePreviewStore } from '../store/preview';
+import { useMemoryStore } from '../store/memory';
 import { onInvoke, resetIpc, countCalls, ipcCalls } from '../test/mock-ipc';
 import type { Chunk } from '../lib/ollama';
 
@@ -166,6 +167,30 @@ describe('store de chat', () => {
     scriptChat([{ type: 'content', id: 'x', delta: '```html\n<b>x</b>\n```' }, { type: 'done', id: 'x', thinkingMs: 10 }]);
     await useChatStore.getState().sendMessage('hola', MODEL);
     expect(usePreviewStore.getState().open).toBe(false);
+  });
+
+  it('(v2.4) memoria activa entra primero como system y antes del skill (en el request real)', async () => {
+    useMemoryStore.setState({ active: true, files: [{ name: 'memory/proyectos.md', extension: 'md', content: 'proyectos de Dan', isBinary: false, sizeBytes: 16 }] });
+    useChatStore.getState().setSkill('ui-styling', 'System del skill');
+    scriptChat([]);
+    await useChatStore.getState().sendMessage('hola', MODEL);
+    const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
+    const msgs = call.args.messages as { role: string; content: string }[];
+    expect(msgs[0].role).toBe('system');
+    expect(msgs[0].content).toContain('memoria de proyectos');
+    expect(msgs[0].content).toContain('proyectos de Dan');
+    expect(msgs[1].content).toBe('System del skill');
+    useMemoryStore.setState({ active: false, files: [] });
+  });
+
+  it('(v2.4) memoria inactiva no inyecta system extra', async () => {
+    useChatStore.getState().setSkill('ui-styling', 'System del skill');
+    scriptChat([]);
+    await useChatStore.getState().sendMessage('hola', MODEL);
+    const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
+    const msgs = call.args.messages as { role: string; content: string }[];
+    expect(msgs[0].content).toBe('System del skill');
+    expect(msgs.length).toBe(2);
   });
 
   it('think se envía según capability del modelo (spec §7.1)', async () => {

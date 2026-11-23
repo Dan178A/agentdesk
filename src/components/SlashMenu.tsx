@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useChatStore } from '../store/chat';
+import { useMemoryStore } from '../store/memory';
 import { filterItems, handleMenuKey } from '../lib/slashMenu';
 import { INTERFACE_PROMPT, type MenuItem, type SkillFile } from '../lib/skills';
 
@@ -123,6 +124,10 @@ export async function executeSelection(item: MenuItem): Promise<boolean> {
       }
       case 'model':
         return true; // el ChatInput abre el ModelPicker
+      case 'memoria':
+        // activa/desactiva la memoria integrada de proyectos (v2.4)
+        void useMemoryStore.getState().toggle();
+        return true;
       default:
         return false;
     }

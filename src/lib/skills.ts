@@ -29,6 +29,7 @@ export const BUILTIN_CMDS: { name: string; description: string }[] = [
   { name: 'model', description: 'Cambiar el modelo del chat' },
   { name: 'agents', description: 'Ir a la vista de agentes' },
   { name: 'interfaz', description: 'Generar una interfaz web y abrirla en el panel' },
+  { name: 'memoria', description: 'Activar o desactivar la memoria de tus proyectos' },
   { name: 'new', description: 'Crear un chat nuevo' },
   { name: 'clear', description: 'Vaciar los mensajes del chat actual' },
   { name: 'theme', description: 'Cambiar tema: claro, oscuro o sistema' },

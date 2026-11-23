@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
-import { FolderOpen, MousePointerClick, Paperclip, Send, Square, X } from 'lucide-react';
+import { FolderOpen, Brain, MousePointerClick, Paperclip, Send, Square, X, Loader2, CircleAlert } from 'lucide-react';
 import { useChatStore } from '../store/chat';
 import { usePreviewStore } from '../store/preview';
+import { useMemoryStore } from '../store/memory';
 import { fileToAttachment, fileToPreview, readFile, readFilesInFolder } from '../lib/fsFiles';
 import type { ModelUI } from '../lib/models';
 import { ModelPicker } from './ModelPicker';
@@ -29,6 +30,11 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
   const skillDir = useChatStore((s) => s.skillDir);
   const clearSkill = useChatStore((s) => s.clearSkill);
   const [modelPickerRequest, setModelPickerRequest] = useState(0);
+  const memoryActive = useMemoryStore((s) => s.active);
+  const memoryFileCount = useMemoryStore((s) => s.files.length);
+  const memoryError = useMemoryStore((s) => s.error);
+  const memoryLoading = useMemoryStore((s) => s.loading);
+  const toggleMemory = () => useMemoryStore.getState().toggle();
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
@@ -160,19 +166,37 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
             onClose={() => setText('')}
           />
         )}
-        {skillDir && (
-          <div className="mb-2 flex justify-end">
-            <span className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-fg">
-              Skill activo: <span className="font-medium text-fg">{skillDir}</span>
-              <button
-                type="button"
-                onClick={clearSkill}
-                aria-label="Quitar skill activo"
-                className="ml-1 rounded-full p-0.5 transition-colors duration-200 hover:bg-surface hover:text-fg"
-              >
-                <X size={11} aria-hidden />
-              </button>
-            </span>
+        {(skillDir || memoryActive) && (
+          <div className="mb-2 flex justify-end gap-2">
+            {memoryActive && (
+              <span className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-fg">
+                <Brain size={12} aria-hidden />
+                Memoria: <span className="font-medium text-fg">{memoryFileCount} fichas</span>
+                {memoryLoading && <Loader2 size={11} className="animate-spin" aria-hidden />}
+                {memoryError && <CircleAlert size={12} className="text-error" aria-hidden />}
+                <button
+                  type="button"
+                  onClick={() => void toggleMemory()}
+                  aria-label="Desactivar la memoria de proyectos"
+                  className="ml-1 rounded-full p-0.5 transition-colors duration-200 hover:bg-surface hover:text-fg"
+                >
+                  <X size={11} aria-hidden />
+                </button>
+              </span>
+            )}
+            {skillDir && (
+              <span className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-fg">
+                Skill activo: <span className="font-medium text-fg">{skillDir}</span>
+                <button
+                  type="button"
+                  onClick={clearSkill}
+                  aria-label="Quitar skill activo"
+                  className="ml-1 rounded-full p-0.5 transition-colors duration-200 hover:bg-surface hover:text-fg"
+                >
+                  <X size={11} aria-hidden />
+                </button>
+              </span>
+            )}
           </div>
         )}
         <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 transition-colors duration-200 focus-within:border-ring">

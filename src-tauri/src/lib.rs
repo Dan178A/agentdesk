@@ -31,7 +31,9 @@ pub fn run() {
             store_fs::teams_save,
             store_fs::teams_load,
             store_fs::usage_save,
-            store_fs::usage_load
+            store_fs::usage_load,
+            store_fs::memory_save,
+            store_fs::memory_load
         ])
         .run(tauri::generate_context!())
         .expect("error al correr agentdesk");

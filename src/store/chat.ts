@@ -18,6 +18,7 @@ import {
 import { extractPreview } from '../lib/preview';
 import { usePreviewStore } from './preview';
 import { useUsageStore } from './usage';
+import { useMemoryStore, buildMemorySystem } from './memory';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -51,9 +52,10 @@ function uid(): string {
 let saveTimer: number | null = null;
 
 /** Mensajes que van al modelo: system del skill activo + historial sin placeholder. */
-export function buildMessages(chat: Chat): ChatMsg[] {
+export function buildMessages(chat: Chat, memory = ''): ChatMsg[] {
   const { skillContent } = useChatStore.getState();
   const out: ChatMsg[] = [];
+  if (memory) out.push({ role: 'system', content: memory });
   if (skillContent) out.push({ role: 'system', content: skillContent });
   for (const m of chat.messages) {
     if (m.role === 'system') continue;
@@ -189,9 +191,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
     set({ generationId: id });
     const modelInfo = s.models.find((m) => m.id === model);
     const think = modelInfo ? modelInfo.canThink : true; // spec §7.1
+    // Memoria integrada (v2.4): fichas del usuario como system prompt permanente
+    const memory = useMemoryStore.getState().active
+      ? buildMemorySystem(useMemoryStore.getState().files)
+      : '';
     try {
       await streamChat(
-        { id, ollamaUrl: s.ollamaUrl, model, messages: buildMessages(updatedChat), think },
+        { id, ollamaUrl: s.ollamaUrl, model, messages: buildMessages(updatedChat, memory), think },
         (c) => get().handleChunk(c),
       );
     } catch (e) {

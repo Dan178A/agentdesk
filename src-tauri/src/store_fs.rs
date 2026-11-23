@@ -80,3 +80,15 @@ pub fn usage_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
 pub fn usage_load(app: tauri::AppHandle) -> Option<String> {
     read_json(&app, "usage.json")
 }
+
+/// Persiste la configuración de memoria integrada (v2.4): ruta y estado on/off.
+#[tauri::command]
+pub fn memory_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    write_json(&app, "memory.json", &data)
+}
+
+/// Carga la configuración de memoria; None si no existe.
+#[tauri::command]
+pub fn memory_load(app: tauri::AppHandle) -> Option<String> {
+    read_json(&app, "memory.json")
+}

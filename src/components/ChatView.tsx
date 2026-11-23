@@ -8,6 +8,7 @@ import { ErrorBanner } from './ErrorBanner';
 import { ContextMeter } from './ContextMeter';
 import { UsageRing } from './UsageRing';
 import { useUsageStore } from '../store/usage';
+import { useMemoryStore } from '../store/memory';
 import { summarizeUsage } from '../lib/usage';
 import { useAgentsStore } from '../store/agents';
 import { AgentLogo } from '../assets/AgentLogo';
@@ -137,6 +138,7 @@ export function ChatView() {
   useEffect(() => {
     init();
     void loadModels();
+    void useMemoryStore.getState().init(); // memoria integrada (v2.4)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
