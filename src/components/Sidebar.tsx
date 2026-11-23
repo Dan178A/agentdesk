@@ -13,6 +13,7 @@ import {
   Users,
   X,
 } from 'lucide-react';
+import { AgentLogo } from '../assets/AgentLogo';
 import { useChatStore } from '../store/chat';
 import { useProjectsStore } from '../store/projects';
 import { useAgentsStore } from '../store/agents';
@@ -75,7 +76,10 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
     >
       {/* Header */}
       <div className="flex items-center justify-between px-3 py-3">
-        <span className="px-1 text-sm font-semibold tracking-tight">AgentDesk</span>
+        <span className="flex items-center gap-2 px-1">
+          <AgentLogo size={22} />
+          <span className="text-sm font-semibold tracking-tight">AgentDesk</span>
+        </span>
         <button
           type="button"
           onClick={onToggle}

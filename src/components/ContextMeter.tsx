@@ -34,7 +34,7 @@ export const ContextMeter = memo(function ContextMeter({
             level === 'error'
               ? 'bg-error'
               : level === 'amber'
-                ? 'bg-amber-500'
+                ? 'bg-warn'
                 : 'bg-primary'
           }`}
           style={{ width: `${Math.max(pct, 1.5)}%` }}
@@ -48,7 +48,7 @@ export const ContextMeter = memo(function ContextMeter({
           Cerca del límite — usa /clear o un chat nuevo
         </span>
       )}
-      {level === 'amber' && <span className="text-amber-600 dark:text-amber-400">Acercándote al límite</span>}
+      {level === 'amber' && <span className="text-warn">Acercándote al límite</span>}
     </div>
   );
 });

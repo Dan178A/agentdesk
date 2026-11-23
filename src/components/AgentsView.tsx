@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { useAgentsStore, LEADER_KEY, SYNTHESIS_KEY, type Agent, type AgentRun } from '../store/agents';
 import { useChatStore } from '../store/chat';
+import { AgentLogo } from '../assets/AgentLogo';
 import { parseModels, DEFAULT_ALIASES, type ModelRaw, type ModelUI } from '../lib/models';
 import { ModelPicker } from './ModelPicker';
 import { ThinkingPanel } from './ThinkingPanel';
@@ -235,6 +236,21 @@ export function AgentsView() {
       {/* Resultados */}
       <div className="flex-1 overflow-y-auto px-6 py-4">
         <div className="mx-auto max-w-5xl space-y-3">
+          {!running && !leaderRun && !synthesisRun && !team.agents.some((a) => runs[a.id]) && (
+            <div className="flex flex-col items-center gap-4 pt-20 text-center">
+              <AgentLogo size={72} className="opacity-80" />
+              <div>
+                <h2 className="text-lg font-semibold tracking-tight">
+                  {team.agents.length === 0 ? 'Arma tu equipo de agentes' : 'Tu equipo está listo'}
+                </h2>
+                <p className="mt-1.5 max-w-md text-sm text-muted-fg">
+                  {team.agents.length === 0
+                    ? 'Añade agentes arriba: cada uno con su modelo, skill y rol. Al enviar la meta, todos responden en paralelo — o el líder reparte subtareas y sintetiza un resultado.'
+                    : 'Envía una meta abajo. En modo manual todos responden en paralelo; en orquestado, el líder divide la meta en subtareas y redacta la síntesis final.'}
+                </p>
+              </div>
+            </div>
+          )}
           {leaderRun && (
             <RunCard
               title={`Líder (${team.orchestratorModel})`}

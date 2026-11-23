@@ -1,4 +1,4 @@
-import { useRef, useState, type KeyboardEvent } from 'react';
+import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { Send, Square, X } from 'lucide-react';
 import { useChatStore } from '../store/chat';
 import type { ModelUI } from '../lib/models';
@@ -10,10 +10,14 @@ interface Props {
   models: ModelUI[];
   activeModel: string;
   onSelect: (id: string) => void;
+  /** Texto que llega desde fuera (chips del empty state); se vuelca al input. */
+  prefill?: string;
+  /** Cambia el nonce para re-disparar el prefijo aunque el texto se repita. */
+  prefillKey?: number;
 }
 
 /** Input de chat: textarea autoexpandible, selector de modelo, enviar/stop. */
-export function ChatInput({ models, activeModel, onSelect }: Props) {
+export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }: Props) {
   const [text, setText] = useState('');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const sendMessage = useChatStore((s) => s.sendMessage);
@@ -22,6 +26,19 @@ export function ChatInput({ models, activeModel, onSelect }: Props) {
   const skillDir = useChatStore((s) => s.skillDir);
   const clearSkill = useChatStore((s) => s.clearSkill);
   const [modelPickerRequest, setModelPickerRequest] = useState(0);
+
+  useEffect(() => {
+    if (prefill) {
+      setText(prefill);
+      const el = textareaRef.current;
+      if (el) {
+        el.style.height = 'auto';
+        el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+        el.focus();
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefill, prefillKey]);
 
   const slashOpen = text.startsWith('/');
   const slashQuery = text.slice(1);

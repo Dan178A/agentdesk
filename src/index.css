@@ -11,6 +11,7 @@
   --primary-fg: #1F1E1D;
   --border: #E5E1D8;
   --error: #DC2626;
+  --warn: #B45309;
   --ring: #D97757;
 }
 
@@ -24,6 +25,7 @@
   --primary-fg: #1F1E1D;
   --border: #3D3D3A;
   --error: #F87171;
+  --warn: #F59E0B;
   --ring: #D97757;
 }
 
@@ -38,6 +40,7 @@
   --color-primary-fg: var(--primary-fg);
   --color-border: var(--border);
   --color-error: var(--error);
+  --color-warn: var(--warn);
   --color-ring: var(--ring);
 }
 

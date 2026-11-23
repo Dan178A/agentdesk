@@ -6,6 +6,15 @@ import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { ErrorBanner } from './ErrorBanner';
 import { ContextMeter } from './ContextMeter';
+import { AgentLogo } from '../assets/AgentLogo';
+import { FileCode2, FlaskConical, Globe, FileText } from 'lucide-react';
+
+const SUGERENCIAS = [
+  { Icon: FileCode2, label: 'Explícame este código', text: 'Explícame este código:\n\n' },
+  { Icon: FlaskConical, label: 'Escríbeme tests', text: 'Escríbeme tests para:\n\n' },
+  { Icon: Globe, label: 'Hazme una página web', text: 'Hazme una página web de ' },
+  { Icon: FileText, label: 'Resume un texto largo', text: 'Resume este texto:\n\n' },
+] as const;
 
 /** Vista central del chat: mensajes + input con modelos. */
 export function ChatView() {
@@ -19,6 +28,7 @@ export function ChatView() {
   const [models, setModelsUi] = useState<ModelUI[]>([]);
   const [modelsError, setModelsError] = useState<string | null>(null);
   const [activeModel, setActiveModel] = useState('glm-5.3-flash:cloud');
+  const [seed, setSeed] = useState<{ text: string; nonce: number } | undefined>(undefined);
   const scrollRef = useRef<HTMLDivElement>(null);
   const retryLast = useChatStore((s) => s.retryLast);
 
@@ -61,12 +71,29 @@ export function ChatView() {
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="mx-auto max-w-3xl space-y-6 px-6 py-8">
           {chat.messages.length === 0 && (
-            <div className="flex flex-col items-center gap-3 pt-24 text-center">
-              <h1 className="text-2xl font-semibold">AgentDesk</h1>
-              <p className="max-w-md text-muted-fg">
-                Chat con tus modelos de Ollama. Escribe <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">/</code> para
-                cargar skills, elige modelo abajo y pregunta lo que quieras.
-              </p>
+            <div className="flex flex-col items-center gap-5 pt-16 text-center">
+              <AgentLogo size={84} className="opacity-90" />
+              <div>
+                <h1 className="text-2xl font-semibold tracking-tight">¿Qué construimos hoy?</h1>
+                <p className="mt-2 max-w-md text-muted-fg">
+                  Chatea con tus agentes: escribe{' '}
+                  <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">/</code> para
+                  cargar una skill, o elige modelo abajo y pregunta lo que quieras.
+                </p>
+              </div>
+              <div className="flex max-w-lg flex-wrap justify-center gap-2">
+                {SUGERENCIAS.map(({ Icon, label, text }) => (
+                  <button
+                    type="button"
+                    key={label}
+                    onClick={() => setSeed((prev) => ({ text, nonce: (prev?.nonce ?? 0) + 1 }))}
+                    className="flex items-center gap-1.5 rounded-full border border-border bg-surface px-3.5 py-1.5 text-sm text-muted-fg transition-colors duration-200 hover:border-ring hover:text-fg"
+                  >
+                    <Icon size={14} aria-hidden />
+                    {label}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {chat.messages.map((m, i) => (
@@ -80,7 +107,13 @@ export function ChatView() {
           ))}
         </div>
       </div>
-      <ChatInput models={models} activeModel={activeModel} onSelect={setActiveModel} />
+      <ChatInput
+        models={models}
+        activeModel={activeModel}
+        onSelect={setActiveModel}
+        prefill={seed?.text}
+        prefillKey={seed?.nonce}
+      />
     </div>
   );
 }
