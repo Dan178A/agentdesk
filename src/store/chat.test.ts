@@ -252,6 +252,36 @@ describe('store de chat', () => {
     expect(useChatStore.getState().activeChatId).toBeTruthy();
   });
 
+  // Regression: ISSUE-002 — /qa 2026-11-22
+  // Report: .gstack/qa-reports/qa-report-projects-2026-11-22.md
+  it('deleteChat prefiere un chat del mismo proyecto (no salta a General)', () => {
+    useChatStore.setState((s) => ({
+      chats: [
+        { ...s.chats[0], projectId: 'general' },
+        { ...s.chats[0], id: 'c-drop-2', projectId: 'dropaudio', title: 'Drop 2' },
+        { ...s.chats[0], id: 'c-drop-1', projectId: 'dropaudio', title: 'Drop 1' },
+      ],
+      activeChatId: 'c-drop-1',
+    }));
+    useChatStore.getState().deleteChat('c-drop-1');
+    const s = useChatStore.getState();
+    expect(s.activeChatId).toBe('c-drop-2'); // hermano del proyecto, no chats[0] global
+    expect(s.chats.find((c) => c.id === s.activeChatId)?.projectId).toBe('dropaudio');
+  });
+
+  it('deleteChat del último chat de un proyecto crea el reemplazo en ESE proyecto', () => {
+    useChatStore.setState((s) => ({
+      chats: [
+        { ...s.chats[0], id: 'c-gen', projectId: 'general' },
+        { ...s.chats[0], id: 'c-drop-last', projectId: 'violin' },
+      ],
+      activeChatId: 'c-drop-last',
+    }));
+    useChatStore.getState().deleteChat('c-drop-last');
+    const s = useChatStore.getState();
+    expect(s.chats.find((c) => c.id === s.activeChatId)?.projectId).toBe('violin');
+  });
+
   it('(v1.1) done con tokens reales setea chat.tokensUsed', async () => {
     scriptChat([
       { type: 'content', id: 'x', delta: 'respuesta' },

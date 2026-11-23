@@ -135,7 +135,7 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
                   onClick={() => toggleCollapse(p.id)}
                   aria-expanded={!isCollapsed}
                   aria-label={isCollapsed ? `Expandir ${p.name}` : `Colapsar ${p.name}`}
-                  className="rounded p-0.5 text-muted-fg opacity-0 transition-opacity duration-150 group-hover:opacity-100"
+                  className="rounded p-0.5 text-muted-fg transition-colors duration-150 hover:text-fg"
                 >
                   <ChevronDown
                     size={13}

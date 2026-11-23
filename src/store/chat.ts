@@ -348,12 +348,33 @@ export const useChatStore = create<ChatState>((set, get) => ({
   },
 
   deleteChat: (id) => {
-    set((s) => {
-      const chats = s.chats.filter((c) => c.id !== id);
-      const activeChatId =
-        s.activeChatId === id ? (chats[0]?.id ?? null) : s.activeChatId;
-      return { chats, activeChatId };
-    });
+    // ISSUE-002 (/qa 2026-11-22): al borrar el chat activo prefiere un chat del
+    // MISMO proyecto; si era el último, crea el reemplazo en ese proyecto.
+    const s = get();
+    const removed = s.chats.find((c) => c.id === id);
+    let chatsNext = s.chats.filter((c) => c.id !== id);
+    let activeNext = s.activeChatId;
+    if (removed && s.activeChatId === id) {
+      const sameProject = chatsNext
+        .filter((c) => c.projectId === removed.projectId)
+        .sort((a, b) => b.updatedAt - a.updatedAt)[0];
+      if (sameProject) {
+        activeNext = sameProject.id;
+      } else {
+        const fresh: Chat = {
+          id: uid(),
+          title: 'Chat nuevo',
+          model: removed.model,
+          projectId: removed.projectId,
+          messages: [],
+          createdAt: Date.now(),
+          updatedAt: Date.now(),
+        };
+        chatsNext = [fresh, ...chatsNext];
+        activeNext = fresh.id;
+      }
+    }
+    set({ chats: chatsNext, activeChatId: activeNext });
     if (get().chats.length === 0) get().newChat();
     void get().scheduleSave();
   },
