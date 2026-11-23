@@ -1,4 +1,5 @@
 mod chat;
+mod cloud_usage;
 mod files;
 mod ollama;
 mod skills;
@@ -15,6 +16,7 @@ pub fn run() {
             skills::read_skill,
             files::read_file,
             files::write_file,
+            cloud_usage::cloud_usage,
             store_fs::history_save,
             store_fs::history_load,
             store_fs::settings_save,

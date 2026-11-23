@@ -1,8 +1,10 @@
-import { useEffect, useMemo } from 'react';
-import { Activity, ArrowLeft, TriangleAlert, TrendingUp, Zap } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { invoke } from '@tauri-apps/api/core';
+import { Activity, ArrowLeft, Cloud, KeyRound, RefreshCw, TriangleAlert, TrendingUp, Zap } from 'lucide-react';
 import { useUsageStore } from '../store/usage';
 import { useAgentsStore } from '../store/agents';
 import { summarizeUsage, formatTokens } from '../lib/usage';
+import { parseCloudUsage, type CloudUsage } from '../lib/cloudUsage';
 import { UsageRing } from './UsageRing';
 
 /** Dashboard de uso de tokens (v2.1): sesión, semana, modelos y días. */
@@ -68,6 +70,9 @@ export function UsageView() {
           </p>
         )}
 
+        {/* Nube: uso real de ollama.com (v2.2) */}
+        <CloudUsageSection />
+
         {/* Modelos */}
         <section>
           <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
@@ -132,6 +137,172 @@ export function UsageView() {
           </section>
         )}
       </div>
+    </div>
+  );
+}
+
+/** Sección de uso real contra ollama.com (v2.2): requiere API key (Settings › Keys). */
+function CloudUsageSection() {
+  const apiKey = useUsageStore((s) => s.ollamaApiKey);
+  const setApiKey = useUsageStore((s) => s.setApiKey);
+  const [inputKey, setInputKey] = useState(apiKey);
+  const [range, setRange] = useState<'24h' | '7d' | '30d'>('7d');
+  const [cloud, setCloud] = useState<CloudUsage | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+
+  const fetchUsage = async (r: '24h' | '7d' | '30d') => {
+    setLoading(true);
+    setError(null);
+    try {
+      const raw = await invoke<string>('cloud_usage', { apiKey, range: r });
+      setCloud(parseCloudUsage(raw));
+    } catch (e) {
+      setError(String(e));
+      setCloud(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (apiKey) void fetchUsage(range);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [apiKey, range]);
+
+  if (!apiKey) {
+    return (
+      <section>
+        <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold">
+          <Cloud size={14} aria-hidden />
+          Ollama Cloud (uso real)
+        </h2>
+        <div className="space-y-2 rounded-xl border border-border bg-surface px-4 py-3">
+          <p className="text-sm text-muted-fg">
+            Pega tu API key de <span className="font-mono text-fg">ollama.com › Settings › Keys</span> para
+            ver el uso que la nube reporta (tokens, requests y dólares por rango).
+          </p>
+          <div className="flex gap-2">
+            <input
+              type="password"
+              value={inputKey}
+              onChange={(e) => setInputKey(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && inputKey.trim()) setApiKey(inputKey);
+              }}
+              placeholder="ollama_live_…"
+              aria-label="API key de ollama.com"
+              className="flex-1 rounded-lg border border-border bg-bg px-3 py-1.5 text-sm outline-none focus:border-ring"
+            />
+            <button
+              type="button"
+              onClick={() => inputKey.trim() && setApiKey(inputKey)}
+              className="flex items-center gap-1.5 rounded-lg bg-primary px-3 py-1.5 text-sm text-primary-fg transition-opacity hover:opacity-90"
+            >
+              <KeyRound size={13} aria-hidden />
+              Conectar
+            </button>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  const maxBucket = cloud ? Math.max(1, ...cloud.buckets.map((b) => b.tokens)) : 1;
+
+  return (
+    <section>
+      <div className="mb-2 flex items-center gap-2">
+        <h2 className="flex flex-1 items-center gap-2 text-sm font-semibold">
+          <Cloud size={14} aria-hidden />
+          Ollama Cloud (uso real)
+        </h2>
+        <div className="flex rounded-lg border border-border bg-surface p-0.5 text-xs">
+          {(['24h', '7d', '30d'] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setRange(r)}
+              aria-pressed={range === r}
+              className={`rounded-md px-2.5 py-1 transition-colors duration-200 ${
+                range === r ? 'bg-muted text-fg' : 'text-muted-fg hover:text-fg'
+              }`}
+            >
+              {r}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          onClick={() => void fetchUsage(range)}
+          aria-label="Actualizar el uso de la nube"
+          className="rounded-lg p-1.5 text-muted-fg transition-colors duration-200 hover:bg-muted hover:text-fg"
+        >
+          <RefreshCw size={13} className={loading ? 'animate-spin' : ''} aria-hidden />
+        </button>
+      </div>
+
+      {error && (
+        <p role="alert" className="mb-2 flex items-start gap-1.5 text-xs text-error">
+          <TriangleAlert size={13} className="mt-0.5 shrink-0" aria-hidden />
+          {error.replace('Error: ', '')}
+        </p>
+      )}
+
+      {cloud && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Stat label="Tokens entrada" value={formatTokens(cloud.totals.inputTokens)} />
+            <Stat label="De caché" value={formatTokens(cloud.totals.cachedInputTokens)} />
+            <Stat label="Tokens salida" value={formatTokens(cloud.totals.outputTokens)} />
+            <Stat label="Gasto" value={`$${cloud.totals.usd.toFixed(cloud.totals.usd < 1 ? 4 : 2)}`} />
+          </div>
+
+          {cloud.buckets.length > 0 && (
+            <div className="flex h-24 items-end gap-1.5 rounded-xl border border-border bg-surface px-4 py-3">
+              {cloud.buckets.map((b) => (
+                <div
+                  key={b.fromTs}
+                  className="flex min-w-0 flex-1 flex-col items-center"
+                  title={`${new Date(b.fromTs).toLocaleString('es')} — ${formatTokens(b.tokens)} tokens · ${b.requests} requests`}
+                >
+                  <div
+                    className={`w-full max-w-10 rounded-t ${b.partial ? 'bg-primary/40' : 'bg-primary/70'}`}
+                    style={{ height: `${Math.max((b.tokens / maxBucket) * 60, 2)}px` }}
+                    aria-hidden
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {cloud.models.length > 0 && (
+            <ul className="overflow-hidden rounded-xl border border-border bg-surface text-sm">
+              {cloud.models.map((m) => (
+                <li
+                  key={m.model}
+                  className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 last:border-b-0"
+                >
+                  <span className="truncate font-medium">{m.model}</span>
+                  <span className="shrink-0 text-xs text-muted-fg">
+                    {m.requests} request{m.requests === 1 ? '' : 's'}
+                    {m.tokens > 0 && ` · ${formatTokens(m.tokens)} tokens`}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function Stat({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface px-4 py-3">
+      <p className="text-[10px] uppercase tracking-wide text-muted-fg">{label}</p>
+      <p className="mt-0.5 text-base font-semibold tabular-nums">{value}</p>
     </div>
   );
 }

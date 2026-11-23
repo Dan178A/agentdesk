@@ -55,4 +55,21 @@ describe('store de uso', () => {
     await useUsageStore.getState().load();
     expect(useUsageStore.getState().events).toEqual([]);
   });
+
+  it('setApiKey recorta espacios y persiste (v2.2)', async () => {
+    onInvoke('usage_save', async () => undefined);
+    useUsageStore.getState().setApiKey('  ok_123  ');
+    expect(useUsageStore.getState().ollamaApiKey).toBe('ok_123');
+    const saves = ipcCalls().filter((c) => c.cmd === 'usage_save');
+    expect(saves.length).toBe(1);
+    expect(saves[0].args.data as string).toContain('"ollamaApiKey":"ok_123"');
+  });
+
+  it('load hidrata la API key (v2.2)', async () => {
+    onInvoke('usage_load', async () =>
+      JSON.stringify({ events: [], ollamaApiKey: 'sk_test' }),
+    );
+    await useUsageStore.getState().load();
+    expect(useUsageStore.getState().ollamaApiKey).toBe('sk_test');
+  });
 });
