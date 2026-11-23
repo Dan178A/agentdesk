@@ -28,10 +28,18 @@ export interface MenuItem {
 export const BUILTIN_CMDS: { name: string; description: string }[] = [
   { name: 'model', description: 'Cambiar el modelo del chat' },
   { name: 'agents', description: 'Ir a la vista de agentes' },
+  { name: 'interfaz', description: 'Generar una interfaz web y abrirla en el panel' },
   { name: 'new', description: 'Crear un chat nuevo' },
   { name: 'clear', description: 'Vaciar los mensajes del chat actual' },
   { name: 'theme', description: 'Cambiar tema: claro, oscuro o sistema' },
 ];
+
+/** System prompt del creador de interfaces (v2.0 Fase 4): responde solo un HTML completo. */
+export const INTERFACE_PROMPT =
+  'Eres un generador de interfaces web. La petición del usuario describe una app; ' +
+  'responde con UN ÚNICO documento HTML autocontenido: <!DOCTYPE html>, todo el CSS y JS en línea, ' +
+  'sin dependencias externas, textos y etiquetas en español, con un diseño limpio y cuidado. ' +
+  'Responde SOLO con un bloque de código ```html que empiece por <!DOCTYPE html>, sin explicación antes ni después.';
 
 function clean(value: string): string {
   const v = value.trim();

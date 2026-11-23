@@ -1,6 +1,7 @@
 import '../test/mock-ipc';
 import { beforeEach, describe, expect, it } from 'vitest';
 import { useChatStore, buildMessages } from '../store/chat';
+import { usePreviewStore } from '../store/preview';
 import { onInvoke, resetIpc, countCalls, ipcCalls } from '../test/mock-ipc';
 import type { Chunk } from '../lib/ollama';
 
@@ -15,6 +16,8 @@ function resetStore() {
       generationId: null,
       ollamaUrl: 'http://localhost:11434',
       defaultModel: MODEL,
+      skillDir: undefined,
+      skillContent: undefined,
     },
     false,
   );
@@ -144,6 +147,25 @@ describe('store de chat', () => {
     const msgs = buildMessages(useChatStore.getState().chats[0]);
     expect(msgs.length).toBe(0); // sin skill y sin mensajes: no hay system
     expect(msgs.every((m) => m.role !== 'system')).toBe(true);
+  });
+
+  it('(v2.0) done con skill «interfaz» abre el HTML en el panel de vista previa', async () => {
+    usePreviewStore.setState({ open: false, content: null });
+    const html = '```html\n<!DOCTYPE html><html><title>Panel de ventas</title><body>hola</body></html>\n```';
+    useChatStore.getState().setSkill('interfaz', 'prompt de interfaz');
+    scriptChat([{ type: 'content', id: 'x', delta: html }, { type: 'done', id: 'x', thinkingMs: 10 }]);
+    await useChatStore.getState().sendMessage('dashboard de ventas', MODEL);
+    const p = usePreviewStore.getState();
+    expect(p.open).toBe(true);
+    expect(p.content?.kind).toBe('html');
+    expect(p.content?.title).toBe('Panel de ventas');
+  });
+
+  it('(v2.0) done sin skill interfaz NO abre el panel', async () => {
+    usePreviewStore.setState({ open: false, content: null });
+    scriptChat([{ type: 'content', id: 'x', delta: '```html\n<b>x</b>\n```' }, { type: 'done', id: 'x', thinkingMs: 10 }]);
+    await useChatStore.getState().sendMessage('hola', MODEL);
+    expect(usePreviewStore.getState().open).toBe(false);
   });
 
   it('think se envía según capability del modelo (spec §7.1)', async () => {

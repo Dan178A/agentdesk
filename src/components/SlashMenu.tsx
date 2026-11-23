@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { useChatStore } from '../store/chat';
 import { filterItems, handleMenuKey } from '../lib/slashMenu';
-import type { MenuItem, SkillFile } from '../lib/skills';
+import { INTERFACE_PROMPT, type MenuItem, type SkillFile } from '../lib/skills';
 
 /** Popup del menú slash: filtro + teclado + ARIA listbox. */
 export function SlashMenu({
@@ -116,6 +116,11 @@ export async function executeSelection(item: MenuItem): Promise<boolean> {
       case 'agents':
         // Vista de agentes llega en Task 12; por ahora no-op
         return true;
+      case 'interfaz': {
+        // activa el system prompt generador de interfaces; el texto siguiente del usuario es la petición
+        store.setSkill('interfaz', INTERFACE_PROMPT);
+        return true;
+      }
       case 'model':
         return true; // el ChatInput abre el ModelPicker
       default:

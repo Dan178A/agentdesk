@@ -15,6 +15,8 @@ import {
   serializeChats,
   type Settings,
 } from '../lib/persist';
+import { extractPreview } from '../lib/preview';
+import { usePreviewStore } from './preview';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -238,6 +240,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingStop: chunk.type === 'done' ? false : st.pendingStop,
     }));
     if (finished) void get().scheduleSave();
+    // Creador de interfaces (v2.0 Fase 4): al terminar, abre el HTML en el panel
+    if (s.skillDir === 'interfaz' && chunk.type === 'done') {
+      const c = useChatStore.getState().chats.find((x) => x.id === chatId);
+      const last = c?.messages[c.messages.length - 1];
+      const preview = last ? extractPreview(last.content) : null;
+      if (preview && preview.kind === 'html') usePreviewStore.getState().show(preview);
+    }
   },
 
   scheduleSave: () => {
