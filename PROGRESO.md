@@ -81,7 +81,9 @@ npm run tauri build  # release
   «Ollama Cloud (uso real)» trae tokens entrada/caché/salida, gasto en USD, barras por rango
   (24h/7d/30d, límite 10 req/min) y el request-count por modelo. Los porcentajes exactos de
   session/weekly que muestra la web ya no salen por API (regresión ollama #19511) — para eso
-  siguen nuestros anillos locales de sesión/semana
+  siguen nuestros anillos locales de sesión/semana. La API key **nunca** se guarda en archivos:
+  vive en el Administrador de credenciales de Windows (DPAPI, `credentials.rs`), con migración
+  automática de usage.json viejos
 - ✅ **Meter de contexto**: barra de tokens usados/total (límite real del modelo), ámbar ≥80%, rojo ≥95%
 - ✅ Botón **Reintentar** en mensajes caídos (reenvía el último mensaje) y en el banner de Ollama caído
 - ✅ Sidebar expandible/colapsable con **proyectos**, chats por proyecto, tema claro/oscuro
