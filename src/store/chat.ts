@@ -19,6 +19,8 @@ import { extractPreview } from '../lib/preview';
 import { usePreviewStore } from './preview';
 import { useUsageStore } from './usage';
 import { useMemoryStore, buildMemorySystem } from './memory';
+import { readFilesInFolder } from '../lib/fsFiles';
+import { buildFolderSystem, type FolderRoot } from '../lib/folderContext';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -51,12 +53,13 @@ function uid(): string {
 
 let saveTimer: number | null = null;
 
-/** Mensajes que van al modelo: system del skill activo + historial sin placeholder. */
-export function buildMessages(chat: Chat, memory = ''): ChatMsg[] {
+/** Mensajes que van al modelo: memoria + skill + carpetas + historial sin placeholder. */
+export function buildMessages(chat: Chat, memory = '', folderContext = ''): ChatMsg[] {
   const { skillContent } = useChatStore.getState();
   const out: ChatMsg[] = [];
   if (memory) out.push({ role: 'system', content: memory });
   if (skillContent) out.push({ role: 'system', content: skillContent });
+  if (folderContext) out.push({ role: 'system', content: folderContext });
   for (const m of chat.messages) {
     if (m.role === 'system') continue;
     // El placeholder assistant (vacío, sin thinking/error) no se envía al modelo
@@ -80,6 +83,10 @@ interface ChatState {
   skillDir?: string;
   skillContent?: string;
   skillCatalog: MenuItem[];
+  /** Carpetas adjuntas al próximo envío (chips arriba del input, v2.5). */
+  pendingFolders: FolderRoot[];
+  addFolder: (path: string) => Promise<void>;
+  removeFolder: (path: string) => void;
   init: () => void;
   loadPersisted: () => Promise<void>;
   scheduleSave: () => void;
@@ -106,6 +113,24 @@ export const useChatStore = create<ChatState>((set, get) => ({
   defaultModel: 'glm-5.3-flash:cloud',
   models: [],
   skillCatalog: [],
+  pendingFolders: [],
+
+  addFolder: async (path) => {
+    const name = path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? path;
+    try {
+      const files = await readFilesInFolder(path);
+      set((s) => ({
+        pendingFolders: [...s.pendingFolders.filter((f) => f.path !== path), { path, name, files }],
+      }));
+    } catch {
+      set((s) => ({
+        pendingFolders: [...s.pendingFolders.filter((f) => f.path !== path), { path, name, files: [] }],
+      }));
+    }
+  },
+
+  removeFolder: (path) =>
+    set((s) => ({ pendingFolders: s.pendingFolders.filter((f) => f.path !== path) })),
 
   init: () => {
     void get().loadPersisted();
@@ -195,9 +220,19 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const memory = useMemoryStore.getState().active
       ? buildMemorySystem(useMemoryStore.getState().files)
       : '';
+    // Carpetas adjuntas (v2.5): el sistema busca en ellas según la consulta y se limpian al enviar
+    const folders = get().pendingFolders;
+    const folderContext = folders.length > 0 ? buildFolderSystem(folders, text) : '';
+    if (folders.length > 0) set({ pendingFolders: [] });
     try {
       await streamChat(
-        { id, ollamaUrl: s.ollamaUrl, model, messages: buildMessages(updatedChat, memory), think },
+        {
+          id,
+          ollamaUrl: s.ollamaUrl,
+          model,
+          messages: buildMessages(updatedChat, memory, folderContext),
+          think,
+        },
         (c) => get().handleChunk(c),
       );
     } catch (e) {

@@ -4,7 +4,7 @@ import { FolderOpen, Brain, MousePointerClick, Paperclip, Send, Square, X, Loade
 import { useChatStore } from '../store/chat';
 import { usePreviewStore } from '../store/preview';
 import { useMemoryStore } from '../store/memory';
-import { fileToAttachment, fileToPreview, readFile, readFilesInFolder } from '../lib/fsFiles';
+import { fileToAttachment, fileToPreview, readFile } from '../lib/fsFiles';
 import type { ModelUI } from '../lib/models';
 import { ModelPicker } from './ModelPicker';
 import { SlashMenu, executeSelection } from './SlashMenu';
@@ -35,6 +35,8 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
   const memoryError = useMemoryStore((s) => s.error);
   const memoryLoading = useMemoryStore((s) => s.loading);
   const toggleMemory = () => useMemoryStore.getState().toggle();
+  const pendingFolders = useChatStore((s) => s.pendingFolders);
+  const removeFolder = useChatStore((s) => s.removeFolder);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
   const [attachMenuOpen, setAttachMenuOpen] = useState(false);
@@ -75,7 +77,6 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
 
   const addFolder = async () => {
     setAttachError(null);
-    setAttaching(true);
     setAttachMenuOpen(false);
     try {
       const selected = await open({
@@ -83,20 +84,11 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
         title: 'Adjuntar carpeta',
       });
       if (!selected) return;
-      const files = await readFilesInFolder(selected);
-      if (files.length === 0) {
-        setAttachError('La carpeta no tiene archivos de texto soportados (o todos se saltaron).');
-        return;
-      }
-      setText((prev) => prev + `\n\n— carpeta: ${files.length} archivos —`);
-      for (const f of files) {
-        setText((prev) => prev + fileToAttachment(f));
-      }
-      autoResizeSoon();
+      // v2.5: la carpeta NO se vuelca al input; queda como chip de contexto
+      // y el sistema busca en ella al enviar la consulta.
+      await useChatStore.getState().addFolder(selected);
     } catch (e) {
       setAttachError(String(e));
-    } finally {
-      setAttaching(false);
     }
   };
 
@@ -166,8 +158,29 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
             onClose={() => setText('')}
           />
         )}
-        {(skillDir || memoryActive) && (
-          <div className="mb-2 flex justify-end gap-2">
+        {(pendingFolders.length > 0 || skillDir || memoryActive) && (
+          <div className="mb-2 flex flex-wrap items-center justify-end gap-2">
+            {pendingFolders.map((f) => (
+              <span
+                key={f.path}
+                className="flex max-w-64 items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-fg"
+                title={`${f.path} — el sistema buscará en esta carpeta al enviar`}
+              >
+                <FolderOpen size={12} aria-hidden />
+                <span className="min-w-0">
+                  <span className="font-medium text-fg">{f.name}</span>
+                  <span className="ml-1">{f.files.length > 0 ? `· ${f.files.length} archivos` : '· …'}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => removeFolder(f.path)}
+                  aria-label={`Quitar la carpeta ${f.name}`}
+                  className="ml-1 rounded-full p-0.5 transition-colors duration-200 hover:bg-surface hover:text-fg"
+                >
+                  <X size={11} aria-hidden />
+                </button>
+              </span>
+            ))}
             {memoryActive && (
               <span className="flex items-center gap-1.5 rounded-full border border-border bg-muted px-3 py-1 text-xs text-muted-fg">
                 <Brain size={12} aria-hidden />
@@ -243,7 +256,7 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
                   <span>
                     Carpeta…
                     <span className="block text-xs text-muted-fg">
-                      hasta 300 archivos de texto, sin .git ni dotfiles
+                      queda como chip: el sistema busca en ella al enviar
                     </span>
                   </span>
                 </button>

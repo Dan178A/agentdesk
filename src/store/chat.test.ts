@@ -193,6 +193,42 @@ describe('store de chat', () => {
     expect(msgs.length).toBe(2);
   });
 
+  it('(v2.5) carpeta adjuntada: sistema busca según la consulta y el chip se limpia al enviar', async () => {
+    onInvoke('read_dir_files', async () => [
+      { name: 'proyectos/dropaudio.md', extension: 'md', content: 'Tienda DropAudio de KZ: precios y Mercado Libre.', isBinary: false, sizeBytes: 50 },
+      { name: 'datos/notas.txt', extension: 'txt', content: 'compras: pan leche café.', isBinary: false, sizeBytes: 30 },
+    ]);
+    await useChatStore.getState().addFolder('C:\\memoria');
+    expect(useChatStore.getState().pendingFolders.length).toBe(1);
+    expect(useChatStore.getState().pendingFolders[0].files.length).toBe(2);
+
+    scriptChat([]);
+    await useChatStore.getState().sendMessage('dime los precios de dropaudio', MODEL);
+    const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
+    const msgs = call.args.messages as { role: string; content: string }[];
+    // el system de carpeta va después de memoria/skill (ninguno activo aquí): primero
+    expect(msgs[0].role).toBe('system');
+    expect(msgs[0].content).toContain('adjuntó la carpeta «memoria»');
+    expect(msgs[0].content).toContain('Tienda DropAudio'); // el archivo relevante está
+    expect(msgs[0].content).not.toContain('pan leche café'); // el que no coincide, fuera
+    // el chip se limpia tras el envío (adjunto de un mensaje, como Claude Desktop)
+    expect(useChatStore.getState().pendingFolders).toEqual([]);
+  });
+
+  it('(v2.5) sin coincidencias manda solo índice e instrucción', async () => {
+    onInvoke('read_dir_files', async () => [
+      { name: 'datos/notas.txt', extension: 'txt', content: 'compras: pan leche café.', isBinary: false, sizeBytes: 30 },
+    ]);
+    await useChatStore.getState().addFolder('C:\\memoria');
+    scriptChat([]);
+    await useChatStore.getState().sendMessage('explícame la fotosíntesis', MODEL);
+    const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
+    const msgs = call.args.messages as { role: string; content: string }[];
+    expect(msgs[0].content).toContain('Ningún archivo coincide');
+    expect(msgs[0].content).toContain('Índice de memoria');
+    expect(useChatStore.getState().pendingFolders).toEqual([]);
+  });
+
   it('think se envía según capability del modelo (spec §7.1)', async () => {
     scriptChat([]);
     useChatStore.getState().setModels([{ id: 'gemma3:4b', name: 'gemma3:4b', canThink: false }]);
