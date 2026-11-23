@@ -57,8 +57,9 @@ npm run tauri build  # release
 | 24 | **v2.3** Menú de adjuntos (Archivos / Carpeta) + listado recursivo en Rust | ✅ |
 | 25 | **v2.4** Memoria integrada: fichas de `claude-memory-2026-11-22` como system prompt permanente | ✅ |
 | 26 | **v2.5** Carpetas como chips de contexto con búsqueda por relevancia (rulings del usuario) | ✅ |
+| 27 | **v2.6** Proyectos con carpeta vinculada, pantalla de proyecto, títulos por tema y memoria guardada | ✅ |
 
-**Tests:** 150/150 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 160/160 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -95,6 +96,13 @@ npm run tauri build  # release
   en todos los chats — el modelo conoce tus proyectos sin adjuntar nada. Chip de estado junto al
   input (con nº de fichas), comando `/memoria` para activar/desactivar, persistencia en
   `memory.json`, presupuesto de 80k caracteres con recorte avisado
+- ✅ **Proyectos con todo (v2.6)**: tocar un proyecto en la sidebar abre su pantalla (chat nuevo,
+  reusando vacíos) con los **últimos chats del proyecto** como chips bajo el input; cada proyecto
+  puede **vincular una carpeta** (botón 📁) que es contexto automático de todos sus chats (búsqueda
+  por relevancia, caché 60s, sin re-adjuntar — probado con DropAudio CCS: 927 archivos); los chats
+  se **nominan por tema** con el modelo (llamada oculta); **memoria guardada**: tras cada
+  intercambio el sistema extrae ≤3 hechos relevantes a `facts.json` y los recuerda cuando
+  preguntas "mira que era esto"; panel derecho con modo **Estado** (memoria + hechos + tokens)
 - ✅ **Meter de contexto**: barra de tokens usados/total (límite real del modelo), ámbar ≥80%, rojo ≥95%
 - ✅ Botón **Reintentar** en mensajes caídos (reenvía el último mensaje) y en el banner de Ollama caído
 - ✅ Sidebar expandible/colapsable con **proyectos**, chats por proyecto, tema claro/oscuro
