@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
+import { open } from '@tauri-apps/plugin-dialog';
 import {
   Check,
   ChevronDown,
+  FolderInput,
   FolderPlus,
   MessageSquare,
   MessageSquarePlus,
@@ -33,6 +35,35 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
   const createProject = useProjectsStore((s) => s.create);
   const removeProject = useProjectsStore((s) => s.remove);
   const toggleCollapse = useProjectsStore((s) => s.toggleCollapse);
+  const setFolder = useProjectsStore((s) => s.setFolder);
+  const openProject = (projectId: string) => {
+    // tocar el proyecto lo lleva a su pantalla: chat nuevo en él con sus últimos chats debajo
+    const existing = chats.filter((c) => c.projectId === projectId).sort((a, b) => b.updatedAt - a.updatedAt);
+    if (existing.length > 0) {
+      // reusa un chat vacío del proyecto si lo hay; si no, crea uno nuevo en él
+      const empty = existing.find((c) => c.messages.length === 0);
+      if (empty) {
+        setActive(empty.id);
+      } else {
+        useChatStore.getState().newChat(existing[0].model);
+        useChatStore.setState((s) => ({
+          chats: s.chats.map((c) => (c.id === s.activeChatId ? { ...c, projectId } : c)),
+        }));
+      }
+    } else {
+      startNewChat(projectId);
+    }
+    useAgentsStore.getState().setView('chats');
+  };
+
+  const pickFolder = async (projectId: string) => {
+    try {
+      const selected = await open({ directory: true, title: 'Carpeta del proyecto' });
+      if (selected) setFolder(projectId, selected);
+    } catch {
+      // diálogo cancelado
+    }
+  };
   const view = useAgentsStore((s) => s.view);
   const setView = useAgentsStore((s) => s.setView);
 
@@ -104,14 +135,22 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
                   onClick={() => toggleCollapse(p.id)}
                   aria-expanded={!isCollapsed}
                   aria-label={isCollapsed ? `Expandir ${p.name}` : `Colapsar ${p.name}`}
-                  className="flex min-w-0 flex-1 items-center gap-1.5 py-0.5 text-left text-xs font-medium uppercase tracking-wide text-muted-fg transition-colors duration-200 hover:text-fg"
+                  className="rounded p-0.5 text-muted-fg opacity-0 transition-opacity duration-150 group-hover:opacity-100"
                 >
                   <ChevronDown
                     size={13}
                     aria-hidden
                     className={`transition-transform duration-200 ${isCollapsed ? '-rotate-90' : ''}`}
                   />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => openProject(p.id)}
+                  title={`Abrir ${p.name}${p.folder ? ` — carpeta vinculada: ${p.folder}` : ''}`}
+                  className="flex min-w-0 flex-1 items-center gap-1 py-0.5 text-left text-xs font-medium uppercase tracking-wide text-muted-fg transition-colors duration-200 hover:text-fg"
+                >
                   <span className="truncate">{p.name}</span>
+                  {p.folder && <FolderInput size={11} aria-hidden className="shrink-0 text-primary" />}
                   <span className="ml-auto text-[10px]">{projectChats.length}</span>
                 </button>
                 <button
@@ -124,6 +163,18 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
                 </button>
                 {p.id !== 'general' && (
                   <>
+                    <button
+                      type="button"
+                      onClick={() => void pickFolder(p.id)}
+                      aria-label={
+                        p.folder ? `Cambiar carpeta de ${p.name}` : `Vincular carpeta a ${p.name}`
+                      }
+                      className={`rounded p-1 opacity-0 transition-opacity duration-150 group-hover:opacity-100 ${
+                        p.folder ? 'text-primary' : 'text-muted-fg hover:text-fg'
+                      }`}
+                    >
+                      <FolderInput size={12} aria-hidden />
+                    </button>
                     <button
                       type="button"
                       onClick={() => {

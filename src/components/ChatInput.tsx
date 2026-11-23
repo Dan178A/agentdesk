@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
-import { FolderOpen, Brain, MousePointerClick, Paperclip, Send, Square, X, Loader2, CircleAlert } from 'lucide-react';
+import { FolderOpen, Brain, History, MessageSquare, MousePointerClick, Paperclip, Send, Square, X, Loader2, CircleAlert } from 'lucide-react';
 import { useChatStore } from '../store/chat';
 import { usePreviewStore } from '../store/preview';
 import { useMemoryStore } from '../store/memory';
@@ -308,10 +308,49 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
             {attachError}
           </p>
         )}
+        <RecentChatsRow />
         <p className="mt-2 text-center text-xs text-muted-fg">
           Los modelos corren en tu Ollama local. El razonamiento del modelo se muestra antes de la
           respuesta.
         </p>
+      </div>
+    </div>
+  );
+}
+
+/** Últimos chats del proyecto activo bajo el input (v2.6). */
+function RecentChatsRow() {
+  const chats = useChatStore((s) => s.chats);
+  const activeChatId = useChatStore((s) => s.activeChatId);
+  const active = chats.find((c) => c.id === activeChatId);
+  if (!active) return null;
+  const recent = chats
+    .filter((c) => c.projectId === active.projectId && c.id !== activeChatId)
+    .sort((a, b) => b.updatedAt - a.updatedAt)
+    .slice(0, 5);
+  if (recent.length === 0) return null;
+
+  const activate = (id: string) => useChatStore.getState().setActive(id);
+  return (
+    <div className="mt-2" aria-label="Últimos chats de este proyecto">
+      <div className="flex items-center gap-1.5 overflow-x-auto pb-1">
+        <span className="flex shrink-0 items-center gap-1 text-[10px] uppercase tracking-wide text-muted-fg">
+          <History size={11} aria-hidden />
+          Últimos del proyecto:
+        </span>
+        {recent.map((c) => (
+          <button
+            key={c.id}
+            type="button"
+            onClick={() => activate(c.id)}
+            className="flex shrink-0 items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-0.5 text-xs text-muted-fg transition-colors duration-200 hover:border-ring hover:text-fg"
+          >
+            <span className="max-w-40 truncate">{c.title || 'Chat nuevo'}</span>
+            {c.messages.some((m) => m.role === 'assistant') && (
+              <MessageSquare size={10} aria-hidden className="text-muted-fg" />
+            )}
+          </button>
+        ))}
       </div>
     </div>
   );

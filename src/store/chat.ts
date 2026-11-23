@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
-import { streamChat, type ChatMsg, type Chunk } from '../lib/ollama';
+import { streamChat, generateTitle, type ChatMsg, type Chunk } from '../lib/ollama';
 import type { ModelUI } from '../lib/models';
 import {
   parseFrontmatter,
@@ -21,6 +21,9 @@ import { useUsageStore } from './usage';
 import { useMemoryStore, buildMemorySystem } from './memory';
 import { readFilesInFolder } from '../lib/fsFiles';
 import { buildFolderSystem, type FolderRoot } from '../lib/folderContext';
+import { useProjectsStore } from './projects';
+import { useFactsStore } from './facts';
+import { buildFactsSystem } from '../lib/facts';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -222,21 +225,47 @@ export const useChatStore = create<ChatState>((set, get) => ({
       : '';
     // Carpetas adjuntas (v2.5): el sistema busca en ellas según la consulta y se limpian al enviar
     const folders = get().pendingFolders;
-    const folderContext = folders.length > 0 ? buildFolderSystem(folders, text) : '';
+    // Carpeta vinculada del proyecto (v2.6): contexto automático, persistente, sin chip
+    const projectRoot = await useProjectsStore.getState().getContext(chat.projectId);
+    const allRoots = projectRoot ? [...folders, projectRoot] : folders;
+    const folderContext = allRoots.length > 0 ? buildFolderSystem(allRoots, text) : '';
     if (folders.length > 0) set({ pendingFolders: [] });
+    // Hechos guardados (v2.6): los relevantes para esta consulta, como system extra
+    const recalled = useFactsStore.getState().recall(text);
+    const factsSystem = buildFactsSystem(recalled);
+    const folderAndFacts = [folderContext, factsSystem].filter(Boolean).join('\n\n');
     try {
       await streamChat(
         {
           id,
           ollamaUrl: s.ollamaUrl,
           model,
-          messages: buildMessages(updatedChat, memory, folderContext),
+          messages: buildMessages(updatedChat, memory, folderAndFacts),
           think,
         },
         (c) => get().handleChunk(c),
       );
     } catch (e) {
       get().handleChunk({ type: 'error', id, message: String(e) });
+    }
+    // Extracción de memoria (v2.6): hechos clave del intercambio, llamada oculta
+    const after = get().chats.find((c) => c.id === chat.id);
+    const assistantReply =
+      after?.messages.filter((m) => m.role === 'assistant').slice(-1)[0]?.content ?? '';
+    void useFactsStore
+      .getState()
+      .extractAndSave(s.ollamaUrl, model, text, assistantReply, chat.projectId, chat.id);
+    // Título inteligente (v2.6): si el título es el genérico, pide el tema al modelo (llamada oculta)
+    const genericTitle =
+      !after || after.title === 'Chat nuevo' || after.title.slice(0, 40) === text.slice(0, 40);
+    if (genericTitle && assistantReply.length > 40) {
+      void generateTitle(s.ollamaUrl, model, text, assistantReply).then((title) => {
+        if (!title) return;
+        useChatStore.setState((st) => ({
+          chats: st.chats.map((c) => (c.id === chat.id ? { ...c, title } : c)),
+        }));
+        void get().scheduleSave();
+      });
     }
   },
 

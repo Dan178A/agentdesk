@@ -92,3 +92,29 @@ pub fn memory_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
 pub fn memory_load(app: tauri::AppHandle) -> Option<String> {
     read_json(&app, "memory.json")
 }
+
+/// Persiste hechos guardados por el sistema (v2.6 memoria inteligente).
+#[tauri::command]
+pub fn facts_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    write_json(&app, "facts.json", &data)
+}
+
+/// Carga hechos guardados; None si no existe.
+#[tauri::command]
+pub fn facts_load(app: tauri::AppHandle) -> Option<String> {
+    read_json(&app, "facts.json")
+}
+
+/// Sondea si el servidor agentmemory (github.com/rohitg00/agentmemory) responde en :3111.
+#[tauri::command]
+pub async fn agentmemory_probe(base: String) -> Result<bool, String> {
+    let client = reqwest::Client::builder()
+        .timeout(std::time::Duration::from_millis(1500))
+        .build()
+        .map_err(|e| e.to_string())?;
+    let resp = client
+        .get(format!("{}/", base.trim_end_matches('/')))
+        .send()
+        .await;
+    Ok(matches!(resp, Ok(r) if r.status().as_u16() < 500))
+}

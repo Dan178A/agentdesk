@@ -1,21 +1,31 @@
 import { create } from 'zustand';
 import { invoke } from '@tauri-apps/api/core';
 import { useChatStore } from './chat';
+import { readFilesInFolder, type FileRead } from '../lib/fsFiles';
+import type { FolderRoot } from '../lib/folderContext';
 
 export interface Project {
   id: string;
   name: string;
+  /** Carpeta vinculada (v2.6): contexto automático de todos sus chats. */
+  folder?: string;
 }
 
 interface ProjectsState {
   projects: Project[];
   /** Proyectos colapsados en la sidebar (por id). */
   collapsed: Record<string, boolean>;
+  /** Caché de escaneo de carpeta por proyecto (60s). */
+  folderScan: Record<string, { files: FileRead[]; root: FolderRoot; ts: number }>;
   load: () => Promise<void>;
   create: (name: string) => Project;
   rename: (id: string, name: string) => void;
   remove: (id: string) => void;
   toggleCollapse: (id: string) => void;
+  /** Vincula (o desvincula con '', null) la carpeta de un proyecto. */
+  setFolder: (id: string, folder: string) => void;
+  /** FolderRoot del proyecto con caché de 60s para no re-escanear por mensaje. */
+  getContext: (projectId: string) => Promise<FolderRoot | null>;
 }
 
 function uid(): string {
@@ -35,6 +45,7 @@ async function persist(projects: Project[]) {
 export const useProjectsStore = create<ProjectsState>((set, get) => ({
   projects: [],
   collapsed: {},
+  folderScan: {},
 
   load: async () => {
     try {
@@ -81,5 +92,33 @@ export const useProjectsStore = create<ProjectsState>((set, get) => ({
 
   toggleCollapse: (id) => {
     set((s) => ({ collapsed: { ...s.collapsed, [id]: !s.collapsed[id] } }));
+  },
+
+  setFolder: (id, folder) => {
+    const projects = get().projects.map((p) =>
+      p.id === id ? { ...p, folder: folder.trim() || undefined } : p,
+    );
+    set({ projects, folderScan: {} }); // invalida la caché de contexto
+    void persist(projects);
+  },
+
+  getContext: async (projectId) => {
+    const project = get().projects.find((p) => p.id === projectId);
+    if (!project?.folder) return null;
+    const cached = get().folderScan[project.id];
+    const now = Date.now();
+    if (cached?.files && now - cached.ts < 60_000) return cached.root;
+    try {
+      const files: FileRead[] = await readFilesInFolder(project.folder);
+      const root: FolderRoot = {
+        path: project.folder,
+        name: project.name,
+        files,
+      };
+      set((s) => ({ folderScan: { ...s.folderScan, [project.id]: { files, root, ts: now } } }));
+      return root;
+    } catch {
+      return null; // carpeta ilegible: sin contexto de proyecto
+    }
   },
 }));

@@ -2,10 +2,27 @@ import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { save } from '@tauri-apps/plugin-dialog';
-import { Code2, Globe, ImageIcon, Save, Square, Table2, FileText, X } from 'lucide-react';
 import { invoke } from '@tauri-apps/api/core';
+import {
+  Brain,
+  Code2,
+  Eye,
+  Gauge,
+  Globe,
+  ImageIcon,
+  Save,
+  Square,
+  Table2,
+  FileText,
+  X,
+} from 'lucide-react';
 import { usePreviewStore } from '../store/preview';
 import { parseCsv } from '../lib/preview';
+import { useMemoryStore } from '../store/memory';
+import { useFactsStore } from '../store/facts';
+import { useUsageStore } from '../store/usage';
+import { summarizeUsage, formatTokens } from '../lib/usage';
+import { UsageRing } from './UsageRing';
 
 const KIND_ICON = {
   html: Globe,
@@ -23,20 +40,24 @@ const EXT: Record<string, string> = {
   code: 'txt',
 } as const;
 
-/** Panel lateral derecho con la vista previa del contenido producido (plan v2.0). */
+/** Panel lateral derecho: vista previa del contenido o estado de memoria/uso (v2.6). */
 export function PreviewPanel() {
   const open = usePreviewStore((s) => s.open);
   const content = usePreviewStore((s) => s.content);
+  const mode = usePreviewStore((s) => s.mode);
   const close = usePreviewStore((s) => s.close);
+  const setStatusMode = usePreviewStore((s) => s.setStatusMode);
   const [savedTo, setSavedTo] = useState<string | null>(null);
 
   // Reset del «Guardado» al cambiar el contenido del panel
   useEffect(() => setSavedTo(null), [content]);
 
-  if (!open || !content) return null;
-  const Icon = KIND_ICON[content.kind];
+  if (!open) return null;
+  const effectiveMode = content ? mode : 'status';
+  const Icon = content ? KIND_ICON[content.kind] : Brain;
 
   const saveAs = async () => {
+    if (!content) return;
     const ext = EXT[content.kind] ?? 'txt';
     const defaultName = `${content.title.replace(/[\\/:*?"<>|]/g, '_') || 'archivo'}.${ext}`;
     const path = await save({ defaultPath: defaultName });
@@ -47,13 +68,40 @@ export function PreviewPanel() {
 
   return (
     <aside
-      aria-label="Panel de vista previa"
+      aria-label="Panel de vista previa y estado"
       className="flex h-screen w-[42%] max-w-3xl min-w-80 shrink-0 flex-col border-l border-border bg-surface"
     >
       <header className="flex items-center gap-2 border-b border-border px-4 py-2.5">
         <Icon size={15} className="text-primary" aria-hidden />
-        <span className="min-w-0 flex-1 truncate text-sm font-medium">{content.title}</span>
-        {content.kind === 'image' && (
+        <span className="min-w-0 flex-1 truncate text-sm font-medium">
+          {effectiveMode === 'status' ? 'Memoria y uso' : content!.title}
+        </span>
+        {/* Modo: estado (memoria/uso) ↔ vista previa */}
+        <button
+          type="button"
+          onClick={() => setStatusMode('status')}
+          aria-label="Ver memoria y uso de tokens"
+          aria-pressed={effectiveMode === 'status'}
+          className={`rounded-lg p-1.5 transition-colors duration-200 hover:bg-muted ${
+            effectiveMode === 'status' ? 'text-primary' : 'text-muted-fg'
+          }`}
+        >
+          <Gauge size={14} aria-hidden />
+        </button>
+        {content && (
+          <button
+            type="button"
+            onClick={() => setStatusMode('preview')}
+            aria-label="Volver a la vista previa"
+            aria-pressed={effectiveMode === 'preview'}
+            className={`rounded-lg p-1.5 transition-colors duration-200 hover:bg-muted ${
+              effectiveMode === 'preview' ? 'text-primary' : 'text-muted-fg'
+            }`}
+          >
+            <Eye size={14} aria-hidden />
+          </button>
+        )}
+        {content && content.kind === 'image' && (
           <a
             href={content.text}
             download="vista-previa"
@@ -63,7 +111,7 @@ export function PreviewPanel() {
             <Square size={13} aria-hidden />
           </a>
         )}
-        {content.kind !== 'image' && (
+        {content && content.kind !== 'image' && (
           <button
             type="button"
             onClick={() => void saveAs()}
@@ -95,9 +143,78 @@ export function PreviewPanel() {
         </button>
       </header>
       <div className="min-h-0 flex-1 overflow-auto">
-        <PreviewBody content={content} />
+        {effectiveMode === 'status' ? (
+          <StatusBody />
+        ) : (
+          content && <PreviewBody content={content} />
+        )}
       </div>
     </aside>
+  );
+}
+
+/** Modo «Estado» (v2.6): memoria integrada, hechos guardados y uso de tokens. */
+function StatusBody() {
+  const memoryActive = useMemoryStore((s) => s.active);
+  const memoryFiles = useMemoryStore((s) => s.files.length);
+  const memoryPath = useMemoryStore((s) => s.path);
+  const factsCount = useFactsStore((s) => s.facts.length);
+  const events = useUsageStore((s) => s.events);
+  const sessionStart = useUsageStore((s) => s.sessionStart);
+  const sessionBudget = useUsageStore((s) => s.sessionBudget);
+  const weekBudget = useUsageStore((s) => s.weekBudget);
+  const s = summarizeUsage(events, { now: Date.now(), sessionStart, sessionBudget, weekBudget });
+
+  return (
+    <div className="space-y-4 px-4 py-4 text-sm">
+      <section className="flex items-center justify-around rounded-xl border border-border bg-surface px-4 py-3">
+        <UsageRing
+          pct={s.sessionPct}
+          label="Sesión"
+          title={`Sesión: ${s.sessionTokens} de ${sessionBudget} tokens`}
+          size={52}
+        />
+        <UsageRing
+          pct={s.weekPct}
+          label="Semana"
+          title={`7 días: ${s.weekTokens} de ${weekBudget} tokens`}
+          size={52}
+        />
+        <div className="text-center">
+          <p className="text-lg font-semibold tabular-nums">{formatTokens(s.weekTokens)}</p>
+          <p className="text-[10px] uppercase tracking-wide text-muted-fg">tokens / 7 días</p>
+          {s.topModel && (
+            <p className="mt-1 truncate text-xs text-muted-fg">
+              top: <span className="text-fg">{s.topModel.model}</span>
+            </p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface px-4 py-3">
+        <p className="flex items-center gap-2 font-medium">
+          <Brain size={14} className="text-primary" aria-hidden />
+          Memoria de fichas
+          <span className={`rounded-full px-2 py-0.5 text-[10px] ${memoryActive ? 'bg-primary text-primary-fg' : 'bg-muted text-muted-fg'}`}>
+            {memoryActive ? 'activa' : 'desactivada'}
+          </span>
+        </p>
+        <p className="mt-1.5 text-xs text-muted-fg">
+          {memoryActive
+            ? `${memoryFiles} fichas cargadas de ${memoryPath}`
+            : `Sin activar — activa con /memoria para inyectar ${memoryPath === '' ? 'tu' : 'la'} carpeta de proyectos`}
+        </p>
+      </section>
+
+      <section className="rounded-xl border border-border bg-surface px-4 py-3">
+        <p className="font-medium">Hechos guardados</p>
+        <p className="mt-1.5 text-xs text-muted-fg">
+          {factsCount === 0
+            ? 'Aún no hay detalles guardados — se extraen automáticamente de tus conversaciones.'
+            : `${factsCount} detalles relevantes que el sistema recuerda y recupera por tema.`}
+        </p>
+      </section>
+    </div>
   );
 }
 
