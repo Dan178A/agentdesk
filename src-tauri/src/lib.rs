@@ -1,16 +1,20 @@
 mod chat;
+mod files;
 mod ollama;
 mod skills;
 mod store_fs;
 
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![
             ollama::list_models,
             chat::chat_start,
             chat::chat_stop,
             skills::list_skills,
             skills::read_skill,
+            files::read_file,
+            files::write_file,
             store_fs::history_save,
             store_fs::history_load,
             store_fs::settings_save,

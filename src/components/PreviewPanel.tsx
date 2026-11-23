@@ -1,6 +1,9 @@
+import { useEffect, useState } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import { Code2, Globe, ImageIcon, Square, Table2, FileText, X } from 'lucide-react';
+import { save } from '@tauri-apps/plugin-dialog';
+import { Code2, Globe, ImageIcon, Save, Square, Table2, FileText, X } from 'lucide-react';
+import { invoke } from '@tauri-apps/api/core';
 import { usePreviewStore } from '../store/preview';
 import { parseCsv } from '../lib/preview';
 
@@ -12,14 +15,35 @@ const KIND_ICON = {
   code: Code2,
 } as const;
 
+const EXT: Record<string, string> = {
+  html: 'html',
+  markdown: 'md',
+  csv: 'csv',
+  image: 'txt',
+  code: 'txt',
+} as const;
+
 /** Panel lateral derecho con la vista previa del contenido producido (plan v2.0). */
 export function PreviewPanel() {
   const open = usePreviewStore((s) => s.open);
   const content = usePreviewStore((s) => s.content);
   const close = usePreviewStore((s) => s.close);
+  const [savedTo, setSavedTo] = useState<string | null>(null);
+
+  // Reset del «Guardado» al cambiar el contenido del panel
+  useEffect(() => setSavedTo(null), [content]);
 
   if (!open || !content) return null;
   const Icon = KIND_ICON[content.kind];
+
+  const saveAs = async () => {
+    const ext = EXT[content.kind] ?? 'txt';
+    const defaultName = `${content.title.replace(/[\\/:*?"<>|]/g, '_') || 'archivo'}.${ext}`;
+    const path = await save({ defaultPath: defaultName });
+    if (!path) return;
+    await invoke('write_file', { input: { path, content: content.text } });
+    setSavedTo(path);
+  };
 
   return (
     <aside
@@ -38,6 +62,28 @@ export function PreviewPanel() {
           >
             <Square size={13} aria-hidden />
           </a>
+        )}
+        {content.kind !== 'image' && (
+          <button
+            type="button"
+            onClick={() => void saveAs()}
+            aria-label="Guardar como archivo"
+            className={
+              savedTo
+                ? 'flex max-w-48 items-center gap-1 truncate rounded-lg px-2 py-1 text-xs text-primary'
+                : 'rounded-lg p-1.5 text-muted-fg transition-colors duration-200 hover:bg-muted hover:text-fg'
+            }
+            title={savedTo ?? undefined}
+          >
+            {savedTo ? (
+              <span className="inline-flex items-center gap-1 truncate">
+                <Save size={12} aria-hidden />
+                {savedTo}
+              </span>
+            ) : (
+              <Save size={14} aria-hidden />
+            )}
+          </button>
         )}
         <button
           type="button"

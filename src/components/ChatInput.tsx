@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
-import { Send, Square, X } from 'lucide-react';
+import { open } from '@tauri-apps/plugin-dialog';
+import { Paperclip, Send, Square, X } from 'lucide-react';
 import { useChatStore } from '../store/chat';
+import { usePreviewStore } from '../store/preview';
+import { fileToAttachment, fileToPreview, readFile } from '../lib/fsFiles';
 import type { ModelUI } from '../lib/models';
 import { ModelPicker } from './ModelPicker';
 import { SlashMenu, executeSelection } from './SlashMenu';
@@ -26,6 +29,52 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
   const skillDir = useChatStore((s) => s.skillDir);
   const clearSkill = useChatStore((s) => s.clearSkill);
   const [modelPickerRequest, setModelPickerRequest] = useState(0);
+  const [attachError, setAttachError] = useState<string | null>(null);
+  const [attaching, setAttaching] = useState(false);
+
+  const addAttachments = async () => {
+    setAttachError(null);
+    setAttaching(true);
+    try {
+      const selected = await open({
+        multiple: true,
+        title: 'Adjuntar archivos',
+      });
+      if (!selected) return;
+      const paths = Array.isArray(selected) ? selected : [selected];
+      for (const path of paths) {
+        try {
+          const f = await readFile(path);
+          const preview = fileToPreview(f);
+          if (preview) {
+            usePreviewStore.getState().show(preview);
+            setText(
+              (prev) =>
+                `${prev}\n\n(imagen adjuntada: ${f.name} — visible en el panel de vista previa)`,
+            );
+          } else {
+            setText((prev) => prev + fileToAttachment(f));
+          }
+        } catch (e) {
+          setAttachError(String(e));
+        }
+      }
+      autoResizeSoon();
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const autoResizeSoon = () => {
+    requestAnimationFrame(() => {
+      const el = textareaRef.current;
+      if (el) {
+        el.style.height = 'auto';
+        el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
+        el.focus();
+      }
+    });
+  };
 
   useEffect(() => {
     if (prefill) {
@@ -98,6 +147,15 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
           </div>
         )}
         <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 transition-colors duration-200 focus-within:border-ring">
+          <button
+            type="button"
+            onClick={() => void addAttachments()}
+            disabled={attaching}
+            aria-label="Adjuntar archivos"
+            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface text-fg transition-colors duration-200 hover:bg-muted disabled:opacity-40"
+          >
+            <Paperclip size={15} aria-hidden />
+          </button>
           <textarea
             ref={textareaRef}
             value={text}
@@ -138,6 +196,11 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
             </button>
           )}
         </div>
+        {attachError && (
+          <p role="alert" className="mt-1 text-xs text-error">
+            {attachError}
+          </p>
+        )}
         <p className="mt-2 text-center text-xs text-muted-fg">
           Los modelos corren en tu Ollama local. El razonamiento del modelo se muestra antes de la
           respuesta.
