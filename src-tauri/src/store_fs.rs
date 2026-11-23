@@ -68,3 +68,15 @@ pub fn teams_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
 pub fn teams_load(app: tauri::AppHandle) -> Option<String> {
     read_json(&app, "teams.json")
 }
+
+/// Persiste el registro de uso de tokens (v2.1).
+#[tauri::command]
+pub fn usage_save(app: tauri::AppHandle, data: String) -> Result<(), String> {
+    write_json(&app, "usage.json", &data)
+}
+
+/// Carga el registro de uso; None si no existe (el TS hidrata tolerante).
+#[tauri::command]
+pub fn usage_load(app: tauri::AppHandle) -> Option<String> {
+    read_json(&app, "usage.json")
+}

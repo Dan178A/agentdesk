@@ -17,6 +17,7 @@ import {
 } from '../lib/persist';
 import { extractPreview } from '../lib/preview';
 import { usePreviewStore } from './preview';
+import { useUsageStore } from './usage';
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -240,6 +241,17 @@ export const useChatStore = create<ChatState>((set, get) => ({
       pendingStop: chunk.type === 'done' ? false : st.pendingStop,
     }));
     if (finished) void get().scheduleSave();
+    // Registro de uso (v2.1): tokens del done hacia el medidor
+    if (chunk.type === 'done') {
+      const model = useChatStore
+        .getState()
+        .chats.find((x) => x.id === chatId)?.messages.slice(-1)[0]?.model;
+      useUsageStore.getState().record(
+        model ?? 'desconocido',
+        chunk.promptTokens ?? 0,
+        chunk.completionTokens ?? 0,
+      );
+    }
     // Creador de interfaces (v2.0 Fase 4): al terminar, abre el HTML en el panel
     if (s.skillDir === 'interfaz' && chunk.type === 'done') {
       const c = useChatStore.getState().chats.find((x) => x.id === chatId);

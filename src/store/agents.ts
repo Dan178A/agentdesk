@@ -35,8 +35,8 @@ interface AgentsState {
   teams: Team[];
   activeTeamId: string | null;
   runs: Record<string, AgentRun>;
-  view: 'chats' | 'agents';
-  setView: (view: 'chats' | 'agents') => void;
+  view: 'chats' | 'agents' | 'usage';
+  setView: (view: 'chats' | 'agents' | 'usage') => void;
   newTeam: (name: string) => Team;
   addAgent: (teamId: string) => Agent;
   updateAgent: (teamId: string, agentId: string, patch: Partial<Agent>) => void;

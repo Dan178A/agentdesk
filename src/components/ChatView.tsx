@@ -6,8 +6,53 @@ import { MessageBubble } from './MessageBubble';
 import { ChatInput } from './ChatInput';
 import { ErrorBanner } from './ErrorBanner';
 import { ContextMeter } from './ContextMeter';
+import { UsageRing } from './UsageRing';
+import { useUsageStore } from '../store/usage';
+import { summarizeUsage } from '../lib/usage';
+import { useAgentsStore } from '../store/agents';
 import { AgentLogo } from '../assets/AgentLogo';
 import { FileCode2, FlaskConical, Globe, FileText } from 'lucide-react';
+
+/** Resumen de uso dentro del estado inicial («dashboard al iniciar», v2.1). */
+function EmptyStateUsageSummary() {
+  const events = useUsageStore((s) => s.events);
+  const sessionStart = useUsageStore((s) => s.sessionStart);
+  const sessionBudget = useUsageStore((s) => s.sessionBudget);
+  const weekBudget = useUsageStore((s) => s.weekBudget);
+  const setView = useAgentsStore((s) => s.setView);
+
+  const s = summarizeUsage(events, {
+    now: Date.now(),
+    sessionStart,
+    sessionBudget,
+    weekBudget,
+  });
+
+  return (
+    <p className="mt-3 flex flex-wrap items-center justify-center gap-1.5 text-xs text-muted-fg">
+      {s.weekTokens > 0 ? (
+        <>
+          Últimos 7 días: <strong className="text-fg">{s.weekTokens.toLocaleString('es')}</strong>{' '}
+          tokens ({Math.round(s.weekPct)}% del presupuesto)
+          {s.topModel && (
+            <>
+              {' '}· el más usado: <strong className="text-fg">{s.topModel.model}</strong>
+            </>
+          )}
+        </>
+      ) : (
+        <>El uso de tokens por modelo y por día aparece aquí al empezar a chatear.</>
+      )}
+      <button
+        type="button"
+        onClick={() => setView('usage')}
+        className="text-primary underline-offset-2 hover:underline"
+      >
+        ver dashboard
+      </button>
+    </p>
+  );
+}
 
 const SUGERENCIAS = [
   { Icon: FileCode2, label: 'Explícame este código', text: 'Explícame este código:\n\n' },
@@ -15,6 +60,49 @@ const SUGERENCIAS = [
   { Icon: Globe, label: 'Hazme una página web', text: 'Hazme una página web de ' },
   { Icon: FileText, label: 'Resume un texto largo', text: 'Resume este texto:\n\n' },
 ] as const;
+
+/** Barra superior con los anillos de uso (sesión + semana, v2.1). */
+function UsageBar() {
+  const events = useUsageStore((s) => s.events);
+  const sessionStart = useUsageStore((s) => s.sessionStart);
+  const sessionBudget = useUsageStore((s) => s.sessionBudget);
+  const weekBudget = useUsageStore((s) => s.weekBudget);
+  const load = useUsageStore((s) => s.load);
+  const setView = useAgentsStore((s) => s.setView);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const s = summarizeUsage(events, {
+    now: Date.now(),
+    sessionStart,
+    sessionBudget,
+    weekBudget,
+  });
+
+  return (
+    <div className="flex items-center justify-end gap-4 border-b border-border bg-surface px-4 py-1.5">
+      <button
+        type="button"
+        onClick={() => setView('usage')}
+        className="flex items-center gap-4 transition-opacity hover:opacity-80"
+        aria-label="Abrir dashboard de uso de tokens"
+      >
+        <UsageRing
+          pct={s.sessionPct}
+          label="Sesión"
+          title={`Sesión: ${s.sessionTokens} de ${sessionBudget} tokens — quedan ${s.sessionRemaining}. Click para el dashboard.`}
+        />
+        <UsageRing
+          pct={s.weekPct}
+          label="Semana"
+          title={`7 días: ${s.weekTokens} de ${weekBudget} tokens — quedan ${s.weekRemaining}. Click para el dashboard.`}
+        />
+      </button>
+    </div>
+  );
+}
 
 /** Vista central del chat: mensajes + input con modelos. */
 export function ChatView() {
@@ -66,6 +154,7 @@ export function ChatView() {
 
   return (
     <div className="flex h-screen min-w-0 flex-1 flex-col bg-bg text-fg">
+      <UsageBar />
       <ContextMeter used={chat.tokensUsed} limit={activeModelInfo?.contextLength} />
       {modelsError && <ErrorBanner message={modelsError} onRetry={() => void loadModels()} />}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
@@ -80,6 +169,7 @@ export function ChatView() {
                   <code className="rounded bg-muted px-1.5 py-0.5 font-mono text-sm">/</code> para
                   cargar una skill, o elige modelo abajo y pregunta lo que quieras.
                 </p>
+                <EmptyStateUsageSummary />
               </div>
               <div className="flex max-w-lg flex-wrap justify-center gap-2">
                 {SUGERENCIAS.map(({ Icon, label, text }) => (

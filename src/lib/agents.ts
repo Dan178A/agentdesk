@@ -1,5 +1,6 @@
 import { streamChat, type ChatMsg, type Chunk } from './ollama';
 import type { Agent, AgentRun, Team } from '../store/agents';
+import { useUsageStore } from '../store/usage';
 
 function uid(): string {
   return typeof crypto !== 'undefined' && 'randomUUID' in crypto
@@ -63,6 +64,11 @@ export async function runGeneration(
           opts.onUpdate(key, { content });
         } else if (chunk.type === 'done') {
           opts.onUpdate(key, { status: 'done', thinkingMs: chunk.thinkingMs });
+          useUsageStore.getState().record(
+            agent.model,
+            chunk.promptTokens ?? 0,
+            chunk.completionTokens ?? 0,
+          );
         } else if (chunk.type === 'error') {
           opts.onUpdate(key, { status: 'error', error: chunk.message });
         }

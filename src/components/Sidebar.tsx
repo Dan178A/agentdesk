@@ -12,6 +12,7 @@ import {
   Trash2,
   Users,
   X,
+  Gauge,
 } from 'lucide-react';
 import { AgentLogo } from '../assets/AgentLogo';
 import { useChatStore } from '../store/chat';
@@ -273,6 +274,19 @@ export function Sidebar({ onToggle }: { onToggle: () => void }) {
           >
             <Users size={14} aria-hidden />
             Agentes
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={view === 'usage'}
+            onClick={() => setView('usage')}
+            aria-label="Ver el uso de tokens"
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-md px-2 py-1.5 transition-colors duration-200 ${
+              view === 'usage' ? 'bg-muted text-fg' : 'text-muted-fg hover:text-fg'
+            }`}
+          >
+            <Gauge size={14} aria-hidden />
+            Uso
           </button>
         </div>
         <button

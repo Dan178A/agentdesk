@@ -3,6 +3,7 @@ import { PanelLeftOpen } from 'lucide-react';
 import { Sidebar } from './components/Sidebar';
 import { ChatView } from './components/ChatView';
 import { AgentsView } from './components/AgentsView';
+import { UsageView } from './components/UsageView';
 import { PreviewPanel } from './components/PreviewPanel';
 import { useAgentsStore } from './store/agents';
 
@@ -23,7 +24,7 @@ export default function App() {
           <PanelLeftOpen size={16} aria-hidden />
         </button>
       )}
-      {view === 'agents' ? <AgentsView /> : <ChatView />}
+      {view === 'agents' ? <AgentsView /> : view === 'usage' ? <UsageView /> : <ChatView />}
       <PreviewPanel />
     </div>
   );
