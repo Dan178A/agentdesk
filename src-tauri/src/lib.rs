@@ -1,5 +1,6 @@
 mod chat;
 mod cloud_usage;
+mod credentials;
 mod files;
 mod ollama;
 mod skills;
@@ -17,6 +18,8 @@ pub fn run() {
             files::read_file,
             files::write_file,
             cloud_usage::cloud_usage,
+            credentials::get_ollama_api_key,
+            credentials::set_ollama_api_key,
             store_fs::history_save,
             store_fs::history_load,
             store_fs::settings_save,

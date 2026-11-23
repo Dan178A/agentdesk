@@ -166,7 +166,11 @@ function CloudUsageSection() {
   };
 
   useEffect(() => {
-    if (apiKey) void fetchUsage(range);
+    if (!apiKey) {
+      void useUsageStore.getState().loadApiKey(); // credential manager → estado
+      return;
+    }
+    void fetchUsage(range);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [apiKey, range]);
 
@@ -180,7 +184,8 @@ function CloudUsageSection() {
         <div className="space-y-2 rounded-xl border border-border bg-surface px-4 py-3">
           <p className="text-sm text-muted-fg">
             Pega tu API key de <span className="font-mono text-fg">ollama.com › Settings › Keys</span> para
-            ver el uso que la nube reporta (tokens, requests y dólares por rango).
+            ver el uso que la nube reporta (tokens, requests y dólares por rango). Se guarda en el
+            <span className="text-fg"> Administrador de credenciales de Windows</span>, nunca en archivos.
           </p>
           <div className="flex gap-2">
             <input

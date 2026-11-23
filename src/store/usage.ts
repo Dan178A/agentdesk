@@ -19,19 +19,16 @@ interface UsageState {
   setBudgets: (patch: { sessionBudget?: number; weekBudget?: number }) => void;
   setApiKey: (key: string) => void;
   load: () => Promise<void>;
+  loadApiKey: () => Promise<void>;
 }
 
 let saveTimer: ReturnType<typeof setTimeout> | null = null;
 
-async function persist(
-  events: UsageEvent[],
-  sessionBudget: number,
-  weekBudget: number,
-  ollamaApiKey: string,
-) {
+async function persist(events: UsageEvent[], sessionBudget: number, weekBudget: number) {
   try {
     await invoke('usage_save', {
-      data: JSON.stringify({ events, sessionBudget, weekBudget, ollamaApiKey }),
+      // La API key NO va aquí: vive en el credential manager (credentials.rs).
+      data: JSON.stringify({ events, sessionBudget, weekBudget }),
     });
   } catch {
     // sin persistencia disponible
@@ -52,7 +49,7 @@ export const useUsageStore = create<UsageState>((set, get) => ({
       const events = [...s.events, { ts: Date.now(), model, promptTokens, completionTokens }];
       if (saveTimer !== null) clearTimeout(saveTimer);
       saveTimer = setTimeout(
-        () => persist(events, get().sessionBudget, get().weekBudget, get().ollamaApiKey),
+        () => persist(events, get().sessionBudget, get().weekBudget),
         800,
       );
       return { events };
@@ -65,15 +62,27 @@ export const useUsageStore = create<UsageState>((set, get) => ({
         sessionBudget: patch.sessionBudget ?? s.sessionBudget,
         weekBudget: patch.weekBudget ?? s.weekBudget,
       };
-      void persist(s.events, next.sessionBudget, next.weekBudget, s.ollamaApiKey);
+      void persist(s.events, next.sessionBudget, next.weekBudget);
       return next;
     });
   },
 
   setApiKey: (key) => {
-    set({ ollamaApiKey: key.trim() });
+    const trimmed = key.trim();
+    set({ ollamaApiKey: trimmed });
+    void invoke('set_ollama_api_key', { key: trimmed }).catch(() => undefined);
+    // si había una clave en claro en usage.json (mismo JSON viejo), lo limpia
     const s = get();
-    void persist(s.events, s.sessionBudget, s.weekBudget, s.ollamaApiKey);
+    void persist(s.events, s.sessionBudget, s.weekBudget);
+  },
+
+  loadApiKey: async () => {
+    try {
+      const stored = await invoke<string | null>('get_ollama_api_key');
+      if (stored) set({ ollamaApiKey: stored });
+    } catch {
+      // sin credential manager disponible
+    }
   },
 
   load: async () => {
@@ -91,8 +100,19 @@ export const useUsageStore = create<UsageState>((set, get) => ({
         sessionBudget:
           typeof parsed.sessionBudget === 'number' ? parsed.sessionBudget : s.sessionBudget,
         weekBudget: typeof parsed.weekBudget === 'number' ? parsed.weekBudget : s.weekBudget,
-        ollamaApiKey: typeof parsed.ollamaApiKey === 'string' ? parsed.ollamaApiKey : s.ollamaApiKey,
       }));
+      // Migración de seguridad (v2.2): usage.json viejos traían la API key en claro →
+      // al credential manager y reescritura de usage.json sin el secreto.
+      if (typeof parsed.ollamaApiKey === 'string' && parsed.ollamaApiKey.trim()) {
+        try {
+          await invoke('set_ollama_api_key', { key: parsed.ollamaApiKey.trim() });
+          set({ ollamaApiKey: parsed.ollamaApiKey.trim() });
+        } catch {
+          // sin credential manager: no dejar la clave tampoco en estado de JSON persistido
+        }
+        const s = get();
+        void persist(s.events, s.sessionBudget, s.weekBudget);
+      }
     } catch {
       // falla de lectura: se sigue en memoria
     }
