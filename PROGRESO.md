@@ -53,8 +53,9 @@ npm run tauri build  # release
 | 20 | **v2.0** Adjuntar archivos (plugin dialog + read/write_file en Rust) | ✅ |
 | 21 | **v2.0** Creador de interfaces `/interfaz` con auto-open en el panel | ✅ |
 | 22 | **v2.1** Medidor de uso: anillos sesión/semana en la barra + dashboard con top modelos y días | ✅ |
+| 23 | **v2.2** Uso real de Ollama Cloud (`/api/usage` con API key: tokens, USD, buckets, modelos) | ✅ |
 
-**Tests:** 123/123 TS (Vitest) · 18/18 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 130/130 TS (Vitest) · 20/20 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -76,6 +77,11 @@ npm run tauri build  # release
   (con turno y barras) y distribución por día. Cada `done` de chat y de agente registra
   `prompt + completion` tokens en `usage.json`; presupuestos default 500k sesión / 2M semana
   (editables en `usage.json` con `sessionBudget`/`weekBudget`)
+- ✅ **Ollama Cloud (v2.2)**: en el dashboard, con tu API key de ollama.com › Keys, la sección
+  «Ollama Cloud (uso real)» trae tokens entrada/caché/salida, gasto en USD, barras por rango
+  (24h/7d/30d, límite 10 req/min) y el request-count por modelo. Los porcentajes exactos de
+  session/weekly que muestra la web ya no salen por API (regresión ollama #19511) — para eso
+  siguen nuestros anillos locales de sesión/semana
 - ✅ **Meter de contexto**: barra de tokens usados/total (límite real del modelo), ámbar ≥80%, rojo ≥95%
 - ✅ Botón **Reintentar** en mensajes caídos (reenvía el último mensaje) y en el banner de Ollama caído
 - ✅ Sidebar expandible/colapsable con **proyectos**, chats por proyecto, tema claro/oscuro
