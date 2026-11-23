@@ -56,8 +56,9 @@ npm run tauri build  # release
 | 23 | **v2.2** Uso real de Ollama Cloud (`/api/usage` con API key: tokens, USD, buckets, modelos) | ✅ |
 | 24 | **v2.3** Menú de adjuntos (Archivos / Carpeta) + listado recursivo en Rust | ✅ |
 | 25 | **v2.4** Memoria integrada: fichas de `claude-memory-2026-11-22` como system prompt permanente | ✅ |
+| 26 | **v2.5** Carpetas como chips de contexto con búsqueda por relevancia (rulings del usuario) | ✅ |
 
-**Tests:** 142/142 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 150/150 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -70,9 +71,11 @@ npm run tauri build  # release
 - ✅ **Panel de vista previa** (v2.0): columna derecha que renderiza HTML en iframe sandbox,
   markdown, CSV como tabla e imágenes; los mensajes con bloques html/md/csv ganan «Abrir en panel»
   y el panel guarda el resultado como archivo (`Guardar como…`)
-- ✅ **Adjuntos** (v2.3): el clip abre un menú con dos opciones — **Archivos…** (múltiples, texto
-  o imagen) y **Carpeta…** (recursivo en Rust: solo texto soportado, sin `.git`/`node_modules`/
-  dotfiles/`.env`, máx 300 archivos y 512 KB por archivo, rutas relativas como encabezados)
+- ✅ **Adjuntos** (v2.5, rediseñado por feedback): Archivos… inyecta texto al mensaje; Carpeta…
+  queda como **chip de contexto sobre el input** (ruta + nº de archivos) — al enviar, el sistema
+  busca en la carpeta según la consulta (score por contenido y nombre) y pasa solo los archivos
+  relevantes (presupuesto 30k, índice siempre incluido). El chip se limpia al enviar, como
+  Claude Desktop; Rust sigue filtrando .git/node_modules/dotfiles, máx 300 archivos
 - ✅ **`/interfaz`** (v2.0): el modelo genera un HTML completo y el panel lo muestra live con
   un click; auto-open al terminar la generación
 - ✅ **Medidor de uso** (v2.1): dos anillos en la barra del chat (sesión y semana móvil, ámbar ≥80%,
