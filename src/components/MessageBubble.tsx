@@ -2,10 +2,12 @@ import { memo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { CircleAlert, RefreshCw, Sparkles, Square } from 'lucide-react';
+import { CircleAlert, MonitorPlay, RefreshCw, Sparkles, Square } from 'lucide-react';
 import type { ChatMessage } from '../store/chat';
 import { ThinkingPanel } from './ThinkingPanel';
 import { CodeBlock } from './CodeBlock';
+import { extractPreview } from '../lib/preview';
+import { usePreviewStore } from '../store/preview';
 
 /** Burbuja de mensaje: user en muted, assistant con avatar y markdown. */
 export const MessageBubble = memo(function MessageBubble({
@@ -31,6 +33,7 @@ export const MessageBubble = memo(function MessageBubble({
 
   const streamingHere = isGenerating && !message.error;
   const empty = !message.content && !message.thinking && !message.error;
+  const previewable = !streamingHere ? extractPreview(message.content) : null;
 
   return (
     <div className="flex gap-3">
@@ -46,17 +49,29 @@ export const MessageBubble = memo(function MessageBubble({
         {empty && streamingHere ? (
           <TypingDots />
         ) : (
-          <div className="markdown">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              rehypePlugins={[rehypeHighlight]}
-              components={{
-                pre: (props) => <CodeBlock {...props} />,
-              }}
-            >
-              {message.content}
-            </ReactMarkdown>
-          </div>
+          <>
+            <div className="markdown">
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                rehypePlugins={[rehypeHighlight]}
+                components={{
+                  pre: (props) => <CodeBlock {...props} />,
+                }}
+              >
+                {message.content}
+              </ReactMarkdown>
+            </div>
+            {previewable && (
+              <button
+                type="button"
+                onClick={() => usePreviewStore.getState().show(previewable)}
+                className="mt-2 flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1 text-xs text-muted-fg transition-colors duration-200 hover:border-ring hover:text-fg"
+              >
+                <MonitorPlay size={13} aria-hidden />
+                Abrir en el panel de vista previa
+              </button>
+            )}
+          </>
         )}
         {message.error && (
           <div role="alert" className="mt-2 flex items-center gap-2 text-sm text-error">
