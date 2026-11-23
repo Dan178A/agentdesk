@@ -1,0 +1,122 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="520" viewBox="0 0 1400 520" fill="none" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif">
+  <defs>
+    <radialGradient id="bg" cx="50%" cy="-10%" r="120%" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2A2523"/>
+      <stop offset="0.5" stop-color="#1F1E1D"/>
+      <stop offset="1" stop-color="#151413"/>
+    </radialGradient>
+    <linearGradient id="g" x1="380" y1="220" x2="520" y2="380" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D97757"/>
+      <stop offset="1" stop-color="#E8A87C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="450" cy="300" r="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D97757" stop-opacity="0.35"/>
+      <stop offset="0.65" stop-color="#D97757" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#D97757" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#D97757"/>
+      <stop offset="1" stop-color="#E8A87C"/>
+    </linearGradient>
+    <filter id="blur3"><feGaussianBlur stdDeviation="3"/></filter>
+  </defs>
+
+  <rect width="1400" height="520" fill="url(#bg)"/>
+  <g fill="#FAF9F5">
+    <circle cx="120" cy="90" r="1.6" opacity="0.4"/><circle cx="1300" cy="80" r="1.8" opacity="0.45"/>
+    <circle cx="1330" cy="470" r="1.4" opacity="0.3"/><circle cx="70" cy="460" r="1.4" opacity="0.3"/>
+    <circle cx="700" cy="60" r="1.3" opacity="0.3"/><circle cx="950" cy="480" r="1.2" opacity="0.25"/>
+    <circle cx="220" cy="500" r="1.2" opacity="0.25"/><circle cx="1150" cy="55" r="1.5" opacity="0.35"/>
+  </g>
+
+  <text x="700" y="66" font-size="25" font-weight="700" fill="#F0EEE6" text-anchor="middle">
+    Orchestrated mode: <tspan fill="url(#acc)">one goal</tspan> → parallel subtasks → one answer
+  </text>
+  <text x="700" y="96" font-size="14.5" fill="#A8A79E" text-anchor="middle">
+    A leader agent splits your prompt into JSON subtasks · if one agent falls, the rest keep going
+  </text>
+
+  <!-- you -->
+  <rect x="80" y="274" width="180" height="52" rx="26" fill="#2F2F2C" stroke="#3D3D3A"/>
+  <text x="170" y="306" font-size="16" font-weight="600" fill="#F0EEE6" text-anchor="middle">You</text>
+  <text x="170" y="358" font-size="13" fill="#A8A79E" text-anchor="middle">“Ship the new bilingual README”</text>
+
+  <line x1="264" y1="300" x2="382" y2="300" stroke="#3D3D3A" stroke-width="2"/>
+
+  <!-- leader -->
+  <circle cx="450" cy="300" r="150" fill="url(#glow)"/>
+  <circle cx="450" cy="300" r="64" stroke="#3D3D3A" stroke-width="1.5" fill="#262624"/>
+  <circle cx="450" cy="300" r="40" fill="url(#g)"/>
+  <circle cx="450" cy="300" r="64" stroke="#D97757" stroke-width="2" fill="none" stroke-dasharray="6 8" opacity="0.5"/>
+  <!-- mini constelación: hub + 3 -->
+  <g stroke="#1F1E1D" stroke-width="4" stroke-linecap="round">
+    <line x1="450" y1="304" x2="450" y2="278"/>
+    <line x1="450" y1="304" x2="430" y2="318"/>
+    <line x1="450" y1="304" x2="470" y2="318"/>
+  </g>
+  <circle cx="450" cy="304" r="7" fill="#1F1E1D"/>
+  <circle cx="450" cy="278" r="5" fill="#1F1E1D"/>
+  <circle cx="430" cy="318" r="5" fill="#1F1E1D"/>
+  <circle cx="470" cy="318" r="5" fill="#1F1E1D"/>
+  <text x="450" y="404" font-size="15" font-weight="700" fill="#F0EEE6" text-anchor="middle">Leader · <tspan fill="#E8A87C">glm-max</tspan></text>
+  <text x="450" y="426" font-size="12.5" fill="#A8A79E" text-anchor="middle">splits the goal into subtasks</text>
+
+  <!-- ramas -->
+  <g stroke="#3D3D3A" stroke-width="1.6" stroke-dasharray="4 6">
+    <line x1="514" y1="280" x2="760" y2="170"/>
+    <line x1="514" y1="300" x2="760" y2="292"/>
+    <line x1="514" y1="320" x2="760" y2="414"/>
+  </g>
+  <g font-size="11" font-weight="700">
+    <rect x="612" y="180" width="40" height="20" rx="10" fill="#D97757" fill-opacity="0.16" stroke="#D97757" stroke-opacity="0.45"/>
+    <text x="632" y="194" fill="#E8A87C" text-anchor="middle">t₁</text>
+    <rect x="620" y="270" width="40" height="20" rx="10" fill="#D97757" fill-opacity="0.16" stroke="#D97757" stroke-opacity="0.45"/>
+    <text x="640" y="284" fill="#E8A87C" text-anchor="middle">t₂</text>
+    <rect x="612" y="382" width="40" height="20" rx="10" fill="#D97757" fill-opacity="0.16" stroke="#D97757" stroke-opacity="0.45"/>
+    <text x="632" y="396" fill="#E8A87C" text-anchor="middle">t₃</text>
+  </g>
+
+  <!-- agentes -->
+  <g>
+    <rect x="760" y="124" width="330" height="92" rx="12" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="786" cy="150" r="5" fill="#D97757"/>
+    <circle cx="786" cy="150" r="10" fill="#D97757" opacity="0.25" filter="url(#blur3)"/>
+    <text x="806" y="156" font-size="14.5" font-weight="600" fill="#F0EEE6">Agent 1 · <tspan fill="#E8A87C">glm-5.3-flash</tspan></text>
+    <text x="786" y="186" font-size="12.5" fill="#A8A79E">review spec &amp; structure · skill: document-release</text>
+    <text x="1074" y="156" font-size="11" fill="#A8A79E" text-anchor="end">✓ done</text>
+
+    <rect x="760" y="254" width="330" height="92" rx="12" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="786" cy="280" r="5" fill="#D97757"/>
+    <circle cx="786" cy="280" r="10" fill="#D97757" opacity="0.25" filter="url(#blur3)"/>
+    <text x="806" y="286" font-size="14.5" font-weight="600" fill="#F0EEE6">Agent 2 · <tspan fill="#E8A87C">glm-5.3:cloud</tspan></text>
+    <text x="786" y="316" font-size="12.5" fill="#A8A79E">draft the full English README · skill: writing-plans</text>
+    <text x="1074" y="286" font-size="11" fill="#A8A79E" text-anchor="end">✓ done</text>
+
+    <rect x="760" y="384" width="330" height="92" rx="12" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="786" cy="410" r="5" fill="#D97757"/>
+    <circle cx="786" cy="410" r="10" fill="#D97757" opacity="0.25" filter="url(#blur3)"/>
+    <text x="806" y="416" font-size="14.5" font-weight="600" fill="#F0EEE6">Agent 3 · <tspan fill="#E8A87C">deepseek-flash</tspan></text>
+    <text x="786" y="446" font-size="12.5" fill="#A8A79E">cross-check both languages stay in sync</text>
+    <text x="1074" y="416" font-size="11" fill="#A8A79E" text-anchor="end">⟳ retry 1</text>
+  </g>
+
+  <!-- síntesis -->
+  <g stroke="#3D3D3A" stroke-width="1.6" stroke-dasharray="4 6">
+    <line x1="1090" y1="170" x2="1180" y2="270"/>
+    <line x1="1090" y1="300" x2="1180" y2="296"/>
+    <line x1="1090" y1="430" x2="1180" y2="326"/>
+  </g>
+  <rect x="1178" y="212" width="162" height="176" rx="14" fill="#D97757" fill-opacity="0.12" stroke="#D97757" stroke-opacity="0.5"/>
+  <g transform="translate(1259,258)">
+    <line x1="0" y1="6" x2="0" y2="-12" stroke="url(#acc)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="6" x2="-13" y2="14" stroke="url(#acc)" stroke-width="3" stroke-linecap="round"/>
+    <line x1="0" y1="6" x2="13" y2="14" stroke="url(#acc)" stroke-width="3" stroke-linecap="round"/>
+    <circle cx="0" cy="-12" r="5" fill="url(#acc)"/>
+    <circle cx="-13" cy="14" r="5" fill="url(#acc)"/>
+    <circle cx="13" cy="14" r="5" fill="url(#acc)"/>
+    <circle cx="0" cy="6" r="8" fill="url(#acc)"/>
+  </g>
+  <text x="1259" y="316" font-size="15" font-weight="700" fill="#E8A87C" text-anchor="middle">Synthesis</text>
+  <text x="1259" y="340" font-size="11.5" fill="#A8A79E" text-anchor="middle">the leader redacts</text>
+  <text x="1259" y="356" font-size="11.5" fill="#A8A79E" text-anchor="middle">the final answer</text>
+</svg>

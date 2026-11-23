@@ -1,0 +1,112 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="520" viewBox="0 0 1280 520" fill="none">
+  <defs>
+    <radialGradient id="bg" cx="22%" cy="-10%" r="120%" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#2C2523"/>
+      <stop offset="0.45" stop-color="#1F1E1D"/>
+      <stop offset="1" stop-color="#141312"/>
+    </radialGradient>
+    <linearGradient id="g" x1="96" y1="118" x2="396" y2="418" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D97757"/>
+      <stop offset="1" stop-color="#E8A87C"/>
+    </linearGradient>
+    <radialGradient id="tileglow" cx="246" cy="260" r="230" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D97757" stop-opacity="0.4"/>
+      <stop offset="0.6" stop-color="#D97757" stop-opacity="0.1"/>
+      <stop offset="1" stop-color="#D97757" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="acc" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#D97757"/>
+      <stop offset="1" stop-color="#E8A87C"/>
+    </linearGradient>
+    <filter id="blur"><feGaussianBlur stdDeviation="1.6"/></filter>
+    <filter id="blur4"><feGaussianBlur stdDeviation="4"/></filter>
+  </defs>
+
+  <rect width="1280" height="520" fill="url(#bg)"/>
+
+  <!-- starfield + constelación de fondo -->
+  <g stroke="#E8A87C" stroke-width="1" opacity="0.14">
+    <path d="M1080 96 L1180 190 L1130 320 L1250 408" fill="none"/>
+    <path d="M1120 470 L1130 320" fill="none"/>
+    <path d="M620 60 L700 132" fill="none"/>
+  </g>
+  <g fill="#FAF9F5">
+    <circle cx="1080" cy="96" r="2.6" opacity="0.8"/>
+    <circle cx="1180" cy="190" r="1.8" opacity="0.6"/>
+    <circle cx="1130" cy="320" r="3" opacity="0.9"/>
+    <circle cx="1250" cy="408" r="1.6" opacity="0.5"/>
+    <circle cx="1120" cy="470" r="2" opacity="0.6"/>
+    <circle cx="620" cy="60" r="1.6" opacity="0.45"/>
+    <circle cx="700" cy="132" r="2.2" opacity="0.55"/>
+    <circle cx="940" cy="70" r="1.4" opacity="0.35"/>
+    <circle cx="820" cy="440" r="1.5" opacity="0.3"/>
+    <circle cx="1240" cy="60" r="2" opacity="0.5"/>
+    <circle cx="1010" cy="180" r="1.2" opacity="0.3"/>
+    <circle cx="960" cy="480" r="1.4" opacity="0.3"/>
+    <circle cx="470" cy="480" r="1.3" opacity="0.25"/>
+    <circle cx="560" cy="410" r="1.2" opacity="0.2"/>
+    <circle cx="40" cy="60" r="1.6" opacity="0.4"/>
+    <circle cx="60" cy="470" r="1.4" opacity="0.3"/>
+  </g>
+  <g fill="#E8A87C" filter="url(#blur)" opacity="0.7">
+    <circle cx="1130" cy="320" r="7"/>
+    <circle cx="1080" cy="96" r="5"/>
+    <circle cx="1180" cy="190" r="4"/>
+  </g>
+
+  <!-- glow y tile del logo -->
+  <rect x="26" y="40" width="440" height="440" rx="110" fill="url(#tileglow)"/>
+  <g transform="translate(96,110) scale(0.29296875)">
+    <rect width="1024" height="1024" rx="224" fill="#1F1E1D" stroke="#3D3D3A" stroke-width="6"/>
+    <g fill="#FAF9F5">
+      <circle cx="180" cy="170" r="14" opacity="0.7"/>
+      <circle cx="880" cy="140" r="10" opacity="0.5"/>
+      <circle cx="920" cy="560" r="8" opacity="0.4"/>
+      <circle cx="120" cy="700" r="10" opacity="0.45"/>
+    </g>
+    <g stroke="url(#g)" stroke-width="44" stroke-linecap="round" opacity="0.55">
+      <path d="M512 616V248"/>
+      <path d="M512 616L256 784"/>
+      <path d="M512 616L768 784"/>
+    </g>
+    <circle cx="512" cy="616" r="200" stroke="url(#g)" stroke-width="26" opacity="0.25"/>
+    <circle cx="512" cy="616" r="160" fill="url(#g)" opacity="0.14" filter="url(#blur4)"/>
+    <circle cx="512" cy="248" r="72" fill="url(#g)"/>
+    <circle cx="256" cy="784" r="72" fill="url(#g)"/>
+    <circle cx="768" cy="784" r="72" fill="url(#g)"/>
+    <circle cx="512" cy="616" r="120" fill="url(#g)"/>
+    <circle cx="472" cy="576" r="32" fill="#FAF9F5" opacity="0.85"/>
+  </g>
+
+  <!-- wordmark -->
+  <text x="470" y="238" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="96" font-weight="800" letter-spacing="-3">
+    <tspan fill="#F0EEE6">Agent</tspan><tspan fill="url(#acc)">Desk</tspan>
+  </text>
+  <text x="473" y="300" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="27" fill="#A8A79E">
+    The desktop chat for your local and cloud Ollama
+  </text>
+
+  <!-- chips de features -->
+  <g font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="16">
+    <rect x="470" y="352" width="164" height="36" rx="18" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="490" cy="370" r="4" fill="#D97757"/>
+    <text x="504" y="376" fill="#A8A79E">Token streaming</text>
+
+    <rect x="646" y="352" width="130" height="36" rx="18" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="666" cy="370" r="4" fill="#D97757"/>
+    <text x="680" y="376" fill="#A8A79E">Agent teams</text>
+
+    <rect x="788" y="352" width="138" height="36" rx="18" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="808" cy="370" r="4" fill="#D97757"/>
+    <text x="822" y="376" fill="#A8A79E">Live preview</text>
+
+    <rect x="938" y="352" width="164" height="36" rx="18" fill="#262624" stroke="#3D3D3A"/>
+    <circle cx="958" cy="370" r="4" fill="#D97757"/>
+    <text x="972" y="376" fill="#A8A79E">Usage analytics</text>
+  </g>
+
+  <!-- stack -->
+  <text x="473" y="452" font-family="-apple-system, 'Segoe UI', system-ui, sans-serif" font-size="15" fill="#6B6A65" letter-spacing="0.4">
+    Tauri 2 · React 18 · TypeScript · Rust · Windows
+  </text>
+</svg>

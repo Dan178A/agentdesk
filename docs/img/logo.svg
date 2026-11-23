@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="g" x1="224" y1="192" x2="800" y2="880" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D97757"/>
+      <stop offset="1" stop-color="#E8A87C"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="512" cy="512" r="512" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D97757" stop-opacity="0.45"/>
+      <stop offset="0.55" stop-color="#D97757" stop-opacity="0.12"/>
+      <stop offset="1" stop-color="#D97757" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="soft" x="-40%" y="-40%" width="180%" height="180%">
+      <feGaussianBlur stdDeviation="2.4"/>
+    </filter>
+  </defs>
+
+  <circle cx="512" cy="512" r="512" fill="url(#glow)"/>
+  <rect width="1024" height="1024" rx="224" fill="#1F1E1D"/>
+
+  <!-- estrellas de la constelación -->
+  <g fill="#FAF9F5">
+    <circle cx="180" cy="170" r="5" opacity="0.75"/>
+    <circle cx="880" cy="140" r="4" opacity="0.55"/>
+    <circle cx="920" cy="560" r="3" opacity="0.4"/>
+    <circle cx="120" cy="700" r="4" opacity="0.5"/>
+    <circle cx="760" cy="90" r="3" opacity="0.35"/>
+    <circle cx="250" cy="920" r="3" opacity="0.35"/>
+  </g>
+
+  <!-- constelación: nodo orquestador + 3 agentes -->
+  <g stroke="url(#g)" stroke-width="40" stroke-linecap="round" opacity="0.55">
+    <path d="M512 616V248"/>
+    <path d="M512 616L256 784"/>
+    <path d="M512 616L768 784"/>
+  </g>
+  <circle cx="512" cy="616" r="200" stroke="url(#g)" stroke-width="24" opacity="0.25"/>
+
+  <!-- halo del hub -->
+  <circle cx="512" cy="616" r="150" fill="url(#g)" opacity="0.16" filter="url(#soft)"/>
+
+  <circle cx="512" cy="248" r="72" fill="url(#g)"/>
+  <circle cx="256" cy="784" r="72" fill="url(#g)"/>
+  <circle cx="768" cy="784" r="72" fill="url(#g)"/>
+  <circle cx="512" cy="616" r="120" fill="url(#g)"/>
+  <circle cx="472" cy="576" r="32" fill="#FAF9F5" opacity="0.85"/>
+
+  <!-- brillo de estrellas -->
+  <circle cx="180" cy="170" r="10" fill="#FAF9F5" opacity="0.2" filter="url(#soft)"/>
+  <circle cx="880" cy="140" r="8" fill="#FAF9F5" opacity="0.16" filter="url(#soft)"/>
+</svg>
