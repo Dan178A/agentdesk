@@ -54,8 +54,9 @@ npm run tauri build  # release
 | 21 | **v2.0** Creador de interfaces `/interfaz` con auto-open en el panel | ✅ |
 | 22 | **v2.1** Medidor de uso: anillos sesión/semana en la barra + dashboard con top modelos y días | ✅ |
 | 23 | **v2.2** Uso real de Ollama Cloud (`/api/usage` con API key: tokens, USD, buckets, modelos) | ✅ |
+| 24 | **v2.3** Menú de adjuntos (Archivos / Carpeta) + listado recursivo en Rust | ✅ |
 
-**Tests:** 130/130 TS (Vitest) · 20/20 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 132/132 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -68,8 +69,9 @@ npm run tauri build  # release
 - ✅ **Panel de vista previa** (v2.0): columna derecha que renderiza HTML en iframe sandbox,
   markdown, CSV como tabla e imágenes; los mensajes con bloques html/md/csv ganan «Abrir en panel»
   y el panel guarda el resultado como archivo (`Guardar como…`)
-- ✅ **Adjuntos** (v2.0): botón de clip → diálogo nativo; los textos se inyectan al mensaje,
-  las imágenes abren en el panel (límite 50 MB, extensiones de texto/código/imágenes)
+- ✅ **Adjuntos** (v2.3): el clip abre un menú con dos opciones — **Archivos…** (múltiples, texto
+  o imagen) y **Carpeta…** (recursivo en Rust: solo texto soportado, sin `.git`/`node_modules`/
+  dotfiles/`.env`, máx 300 archivos y 512 KB por archivo, rutas relativas como encabezados)
 - ✅ **`/interfaz`** (v2.0): el modelo genera un HTML completo y el panel lo muestra live con
   un click; auto-open al terminar la generación
 - ✅ **Medidor de uso** (v2.1): dos anillos en la barra del chat (sesión y semana móvil, ámbar ≥80%,
