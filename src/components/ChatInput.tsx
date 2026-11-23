@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
-import { Paperclip, Send, Square, X } from 'lucide-react';
+import { FolderOpen, MousePointerClick, Paperclip, Send, Square, X } from 'lucide-react';
 import { useChatStore } from '../store/chat';
 import { usePreviewStore } from '../store/preview';
-import { fileToAttachment, fileToPreview, readFile } from '../lib/fsFiles';
+import { fileToAttachment, fileToPreview, readFile, readFilesInFolder } from '../lib/fsFiles';
 import type { ModelUI } from '../lib/models';
 import { ModelPicker } from './ModelPicker';
 import { SlashMenu, executeSelection } from './SlashMenu';
@@ -31,10 +31,12 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
   const [modelPickerRequest, setModelPickerRequest] = useState(0);
   const [attachError, setAttachError] = useState<string | null>(null);
   const [attaching, setAttaching] = useState(false);
+  const [attachMenuOpen, setAttachMenuOpen] = useState(false);
 
-  const addAttachments = async () => {
+  const addFiles = async () => {
     setAttachError(null);
     setAttaching(true);
+    setAttachMenuOpen(false);
     try {
       const selected = await open({
         multiple: true,
@@ -60,6 +62,33 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
         }
       }
       autoResizeSoon();
+    } finally {
+      setAttaching(false);
+    }
+  };
+
+  const addFolder = async () => {
+    setAttachError(null);
+    setAttaching(true);
+    setAttachMenuOpen(false);
+    try {
+      const selected = await open({
+        directory: true,
+        title: 'Adjuntar carpeta',
+      });
+      if (!selected) return;
+      const files = await readFilesInFolder(selected);
+      if (files.length === 0) {
+        setAttachError('La carpeta no tiene archivos de texto soportados (o todos se saltaron).');
+        return;
+      }
+      setText((prev) => prev + `\n\n— carpeta: ${files.length} archivos —`);
+      for (const f of files) {
+        setText((prev) => prev + fileToAttachment(f));
+      }
+      autoResizeSoon();
+    } catch (e) {
+      setAttachError(String(e));
     } finally {
       setAttaching(false);
     }
@@ -146,16 +175,57 @@ export function ChatInput({ models, activeModel, onSelect, prefill, prefillKey }
             </span>
           </div>
         )}
-        <div className="flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 transition-colors duration-200 focus-within:border-ring">
-          <button
-            type="button"
-            onClick={() => void addAttachments()}
-            disabled={attaching}
-            aria-label="Adjuntar archivos"
-            className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface text-fg transition-colors duration-200 hover:bg-muted disabled:opacity-40"
-          >
-            <Paperclip size={15} aria-hidden />
-          </button>
+        <div className="relative flex items-end gap-2 rounded-2xl border border-border bg-surface p-2 transition-colors duration-200 focus-within:border-ring">
+          <div className="relative">
+            <button
+              type="button"
+              onClick={() => setAttachMenuOpen((v) => !v)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setAttachMenuOpen(false);
+              }}
+              disabled={attaching}
+              aria-label="Adjuntar: archivos o carpeta"
+              aria-expanded={attachMenuOpen}
+              aria-haspopup="menu"
+              className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-surface text-fg transition-colors duration-200 hover:bg-muted disabled:opacity-40"
+            >
+              <Paperclip size={15} aria-hidden />
+            </button>
+            {attachMenuOpen && (
+              <div
+                role="menu"
+                aria-label="Opciones de adjuntar"
+                className="absolute bottom-full left-0 z-20 mb-2 w-56 rounded-xl border border-border bg-surface p-1.5 shadow-lg"
+              >
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void addFiles()}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-200 hover:bg-muted"
+                >
+                  <MousePointerClick size={15} aria-hidden />
+                  <span>
+                    Archivos…
+                    <span className="block text-xs text-muted-fg">uno o varios (texto o imagen)</span>
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => void addFolder()}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-3 py-2 text-left text-sm transition-colors duration-200 hover:bg-muted"
+                >
+                  <FolderOpen size={15} aria-hidden />
+                  <span>
+                    Carpeta…
+                    <span className="block text-xs text-muted-fg">
+                      hasta 300 archivos de texto, sin .git ni dotfiles
+                    </span>
+                  </span>
+                </button>
+              </div>
+            )}
+          </div>
           <textarea
             ref={textareaRef}
             value={text}

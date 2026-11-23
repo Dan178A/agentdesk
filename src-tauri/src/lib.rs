@@ -17,6 +17,7 @@ pub fn run() {
             skills::read_skill,
             files::read_file,
             files::write_file,
+            files::read_dir_files,
             cloud_usage::cloud_usage,
             credentials::get_ollama_api_key,
             credentials::set_ollama_api_key,

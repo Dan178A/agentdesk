@@ -21,6 +21,12 @@ const TEXT_EXTS: [&str; 22] = [
 ];
 const IMAGE_EXTS: [&str; 8] = ["png", "jpg", "jpeg", "gif", "webp", "svg", "ico", "bmp"];
 const MAX_BYTES: u64 = 50 * 1024 * 1024;
+// Carpetas ignoradas al subir una carpeta completa (dependencias y basura de build)
+const IGNORED_DIRS: [&str; 9] = [
+    ".git", "node_modules", "target", "dist", "build", ".next", "__pycache__", ".venv", "vendor",
+];
+const MAX_DIR_FILES: usize = 300;
+const MAX_DIR_FILE_BYTES: u64 = 512 * 1024;
 
 #[derive(Deserialize)]
 pub struct FileWriteInput {
@@ -93,6 +99,83 @@ pub fn write_file_sync(path: &str, content: &str) -> Result<(), String> {
     fs::write(p, content).map_err(|e| format!("No se pudo escribir: {e}"))
 }
 
+/// Núcleo sync del listado recursivo de una carpeta (v2.3): solo archivos de texto
+/// soportados, saltando .git/node_modules/target/…, con nombre de ruta relativa.
+pub fn read_dir_files_sync(root: &str) -> Result<Vec<FileRead>, String> {
+    let root_path = Path::new(root);
+    if !root_path.is_dir() {
+        return Err(format!("{root} no es una carpeta"));
+    }
+    let mut out: Vec<FileRead> = Vec::new();
+    let mut stack: Vec<(std::path::PathBuf, String)> = vec![(root_path.to_path_buf(), String::new())];
+    let mut truncated = false;
+
+    while let Some((dir, rel_prefix)) = stack.pop() {
+        let entries = match fs::read_dir(&dir) {
+            Ok(e) => e,
+            Err(_) => continue, // carpeta ilegible (permisos): se salta
+        };
+        for entry in entries.flatten() {
+            if out.len() >= MAX_DIR_FILES {
+                truncated = true;
+                break;
+            }
+            let Ok(ft) = entry.file_type() else { continue };
+            let name = entry.file_name().to_string_lossy().to_string();
+            let rel = if rel_prefix.is_empty() {
+                name.clone()
+            } else {
+                format!("{rel_prefix}/{name}")
+            };
+            if ft.is_dir() {
+                if IGNORED_DIRS.contains(&name.as_str()) || name.starts_with('.') {
+                    continue;
+                }
+                stack.push((entry.path(), rel));
+            } else if ft.is_file() {
+                // dotfiles (.env, .npmrc…) no se suben: suelen llevar secretos
+                if name.starts_with('.') {
+                    continue;
+                }
+                let ext = entry
+                    .path()
+                    .extension()
+                    .map(|e| e.to_string_lossy().to_lowercase())
+                    .unwrap_or_default();
+                if !TEXT_EXTS.contains(&ext.as_str()) {
+                    continue;
+                }
+                let meta = match entry.metadata() {
+                    Ok(m) => m,
+                    Err(_) => continue,
+                };
+                if meta.len() > MAX_DIR_FILE_BYTES {
+                    continue; // archivo demasiado grande para contexto
+                }
+                if let Ok(bytes) = fs::read(entry.path()) {
+                    out.push(FileRead {
+                        name: rel,
+                        extension: ext,
+                        content: String::from_utf8_lossy(&bytes).to_string(),
+                        is_binary: false,
+                        size_bytes: meta.len(),
+                    });
+                }
+            }
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    if truncated {
+        return Ok(out); // el TS avisará del recorte con el límite
+    }
+    Ok(out)
+}
+
+#[tauri::command]
+pub async fn read_dir_files(path: String) -> Result<Vec<FileRead>, String> {
+    read_dir_files_sync(&path)
+}
+
 #[tauri::command]
 pub async fn read_file(path: String) -> Result<FileRead, String> {
     read_file_sync(&path)
@@ -156,5 +239,56 @@ mod tests {
         write_file_sync(&tmp.to_string_lossy(), "ok").unwrap();
         assert_eq!(fs::read_to_string(&tmp).unwrap(), "ok");
         fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn carpeta_lista_recursivo_con_rutas_relativas() {
+        let base = std::env::temp_dir().join(format!("agentdesk-dir-{}", std::process::id()));
+        fs::create_dir_all(base.join("proyecto-a/docs")).unwrap();
+        fs::create_dir_all(base.join("proyecto-b")).unwrap();
+        fs::write(base.join("MEMORY.md"), "# Memoria\níndice").unwrap();
+        fs::write(base.join("proyecto-a/README.md"), "# A").unwrap();
+        fs::write(base.join("proyecto-a/docs/notas.txt"), "hola").unwrap();
+        fs::write(base.join("proyecto-b/app.py"), "print('hola')").unwrap();
+        // basura que debe saltarse
+        fs::create_dir_all(base.join(".git")).unwrap();
+        fs::write(base.join(".git/config"), "secreto").unwrap();
+        fs::create_dir_all(base.join("node_modules/x")).unwrap();
+        fs::write(base.join("node_modules/x/index.js"), "void 0").unwrap();
+        // binario sin soporte
+        fs::write(base.join("img.png"), b"\x89PNG").unwrap();
+        // dotfile nunca se sube (privacidad: .env y similares llevan secretos)
+        fs::write(base.join(".algo.md"), "oculto").unwrap();
+        fs::write(base.join(".env"), "SECRET=1").unwrap();
+        fs::write(base.join("env.txt"), "no es dotfile").unwrap();
+
+        let files = read_dir_files_sync(&base.to_string_lossy()).unwrap();
+        let names: Vec<&str> = files.iter().map(|f| f.name.as_str()).collect();
+        assert_eq!(
+            names,
+            vec!["MEMORY.md", "env.txt", "proyecto-a/README.md", "proyecto-a/docs/notas.txt", "proyecto-b/app.py"]
+        );
+        assert!(files[0].content.contains("índice"));
+        assert!(!names.iter().any(|n| n.contains(".git") || n.contains("node_modules")));
+        assert!(!names.iter().any(|n| n.starts_with('.')));
+        fs::remove_dir_all(&base).ok();
+    }
+
+    #[test]
+    fn carpeta_inexistente_da_error() {
+        assert!(read_dir_files_sync("C:/no-existe-seguro-xyz/").is_err());
+    }
+
+    #[test]
+    fn carpeta_respeta_limite_de_archivos() {
+        let base = std::env::temp_dir().join(format!("agentdesk-cap-{}", std::process::id()));
+        fs::create_dir_all(&base).unwrap();
+        for i in 0..350 {
+            fs::write(base.join(format!("f{i}.txt")), "x").unwrap();
+        }
+        let files = read_dir_files_sync(&base.to_string_lossy()).unwrap();
+        assert!(files.len() >= MAX_DIR_FILES); // recortado al límite
+        assert!(files.len() < 350);
+        fs::remove_dir_all(&base).ok();
     }
 }

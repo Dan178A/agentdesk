@@ -25,6 +25,11 @@ export function fileToPreview(f: FileRead): PreviewContent | null {
   return { kind: 'image', title: f.name, text: f.content };
 }
 
+/** Lista los archivos de texto de una carpeta (recursivo, sin .git/node_modules/dotfiles). */
+export function readFilesInFolder(path: string): Promise<FileRead[]> {
+  return invoke<FileRead[]>('read_dir_files', { path });
+}
+
 /** Bloque markdown para inyectar un archivo de texto en el mensaje. */
 export function fileToAttachment(f: FileRead): string {
   const lang = f.extension || 'txt';
