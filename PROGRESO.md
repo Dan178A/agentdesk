@@ -55,8 +55,9 @@ npm run tauri build  # release
 | 22 | **v2.1** Medidor de uso: anillos sesión/semana en la barra + dashboard con top modelos y días | ✅ |
 | 23 | **v2.2** Uso real de Ollama Cloud (`/api/usage` con API key: tokens, USD, buckets, modelos) | ✅ |
 | 24 | **v2.3** Menú de adjuntos (Archivos / Carpeta) + listado recursivo en Rust | ✅ |
+| 25 | **v2.4** Memoria integrada: fichas de `claude-memory-2026-11-22` como system prompt permanente | ✅ |
 
-**Tests:** 132/132 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 142/142 TS (Vitest) · 25/25 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -86,6 +87,11 @@ npm run tauri build  # release
   siguen nuestros anillos locales de sesión/semana. La API key **nunca** se guarda en archivos:
   vive en el Administrador de credenciales de Windows (DPAPI, `credentials.rs`), con migración
   automática de usage.json viejos
+- ✅ **Memoria integrada** (v2.4): la carpeta de fichas del usuario (default
+  `claude-memory-2026-11-22`) se escanea al activarse y se inyecta como system prompt permanente
+  en todos los chats — el modelo conoce tus proyectos sin adjuntar nada. Chip de estado junto al
+  input (con nº de fichas), comando `/memoria` para activar/desactivar, persistencia en
+  `memory.json`, presupuesto de 80k caracteres con recorte avisado
 - ✅ **Meter de contexto**: barra de tokens usados/total (límite real del modelo), ámbar ≥80%, rojo ≥95%
 - ✅ Botón **Reintentar** en mensajes caídos (reenvía el último mensaje) y en el banner de Ollama caído
 - ✅ Sidebar expandible/colapsable con **proyectos**, chats por proyecto, tema claro/oscuro
