@@ -1,6 +1,6 @@
 [package]
 name = "agentdesk"
-version = "0.2.1"
+version = "0.2.2"
 description = "Wrapper de escritorio tipo Claude Desktop sobre Ollama"
 edition = "2021"
 
