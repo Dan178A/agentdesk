@@ -5,6 +5,7 @@ mod files;
 mod ollama;
 mod skills;
 mod store_fs;
+mod tools;
 
 pub fn run() {
     tauri::Builder::default()
@@ -21,6 +22,8 @@ pub fn run() {
             cloud_usage::cloud_usage,
             credentials::get_ollama_api_key,
             credentials::set_ollama_api_key,
+            tools::search_files,
+            tools::run_command,
             store_fs::history_save,
             store_fs::history_load,
             store_fs::settings_save,

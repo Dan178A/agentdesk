@@ -24,6 +24,25 @@ import { buildFolderSystem, type FolderRoot } from '../lib/folderContext';
 import { useProjectsStore } from './projects';
 import { useFactsStore } from './facts';
 import { buildFactsSystem } from '../lib/facts';
+import {
+  AGENT_SYSTEM_PROMPT,
+  describeCall,
+  executeTool,
+  extractToolCalls,
+  needsConfirmation,
+  type ToolCall,
+} from '../lib/tools';
+
+/** Marcador de resultados de herramientas en el historial (v2.7). */
+export const TOOL_RESULT_MARKER = '[Resultados de herramientas]';
+const MAX_AGENT_ROUNDS = 8;
+
+export interface ToolLogEntry {
+  label: string;
+  ok: boolean;
+  output: string;
+  ts: number;
+}
 
 export interface ChatMessage {
   role: 'user' | 'assistant' | 'system';
@@ -90,6 +109,19 @@ interface ChatState {
   pendingFolders: FolderRoot[];
   addFolder: (path: string) => Promise<void>;
   removeFolder: (path: string) => void;
+  /** Modo agente (v2.7): bucle pensar → herramientas → pensar. */
+  agentMode: boolean;
+  toggleAgentMode: () => void;
+  /** Terminal del agente (v2.7): registro de ejecuciones y salidas. */
+  toolLog: ToolLogEntry[];
+  /** Comando en espera de autorización (bucle pausado). */
+  pendingCommand: ToolCall | null;
+  queuedCommands: ToolCall[];
+  agentRounds: number;
+  /** Contexto del turno de agente actual (system combinado + carpeta), para reanudar. */
+  agentSystemCtx: string;
+  agentFolderCtx: string;
+  confirmCommand: (allow: boolean) => Promise<void>;
   init: () => void;
   loadPersisted: () => Promise<void>;
   scheduleSave: () => void;
@@ -117,6 +149,13 @@ export const useChatStore = create<ChatState>((set, get) => ({
   models: [],
   skillCatalog: [],
   pendingFolders: [],
+  agentMode: false,
+  toolLog: [],
+  pendingCommand: null,
+  queuedCommands: [],
+  agentRounds: 0,
+  agentSystemCtx: '',
+  agentFolderCtx: '',
 
   addFolder: async (path) => {
     const name = path.replace(/[\\/]+$/, '').split(/[\\/]/).pop() ?? path;
@@ -187,6 +226,8 @@ export const useChatStore = create<ChatState>((set, get) => ({
 
   setModels: (models) => set({ models }),
 
+  toggleAgentMode: () => set((s) => ({ agentMode: !s.agentMode })),
+
   sendMessage: async (text, model) => {
     const s = get();
     if (s.isGenerating) return; // Review Focus 2: no doble generación
@@ -234,39 +275,34 @@ export const useChatStore = create<ChatState>((set, get) => ({
     const recalled = useFactsStore.getState().recall(text);
     const factsSystem = buildFactsSystem(recalled);
     const folderAndFacts = [folderContext, factsSystem].filter(Boolean).join('\n\n');
-    try {
-      await streamChat(
-        {
-          id,
-          ollamaUrl: s.ollamaUrl,
-          model,
-          messages: buildMessages(updatedChat, memory, folderAndFacts),
-          think,
-        },
-        (c) => get().handleChunk(c),
-      );
-    } catch (e) {
-      get().handleChunk({ type: 'error', id, message: String(e) });
-    }
-    // Extracción de memoria (v2.6): hechos clave del intercambio, llamada oculta
-    const after = get().chats.find((c) => c.id === chat.id);
-    const assistantReply =
-      after?.messages.filter((m) => m.role === 'assistant').slice(-1)[0]?.content ?? '';
-    void useFactsStore
-      .getState()
-      .extractAndSave(s.ollamaUrl, model, text, assistantReply, chat.projectId, chat.id);
-    // Título inteligente (v2.6): si el título es el genérico, pide el tema al modelo (llamada oculta)
-    const genericTitle =
-      !after || after.title === 'Chat nuevo' || after.title.slice(0, 40) === text.slice(0, 40);
-    if (genericTitle && assistantReply.length > 40) {
-      void generateTitle(s.ollamaUrl, model, text, assistantReply).then((title) => {
-        if (!title) return;
-        useChatStore.setState((st) => ({
-          chats: st.chats.map((c) => (c.id === chat.id ? { ...c, title } : c)),
-        }));
-        void get().scheduleSave();
+    const agentPrompt = s.agentMode ? AGENT_SYSTEM_PROMPT : '';
+    const combinedSystem = [agentPrompt, memory].filter(Boolean).join('\n\n');
+    if (s.agentMode) {
+      set({
+        agentRounds: 0,
+        queuedCommands: [],
+        pendingCommand: null,
+        agentSystemCtx: combinedSystem,
+        agentFolderCtx: folderAndFacts,
       });
+      await runAgentTurn(chat.id, model, id);
+    } else {
+      try {
+        await streamChat(
+          {
+            id,
+            ollamaUrl: s.ollamaUrl,
+            model,
+            messages: buildMessages(updatedChat, combinedSystem, folderAndFacts),
+            think,
+          },
+          (c) => get().handleChunk(c),
+        );
+      } catch (e) {
+        get().handleChunk({ type: 'error', id, message: String(e) });
+      }
     }
+    void postTurn(chat.id, model, text);
   },
 
   stopActive: () => {
@@ -406,4 +442,170 @@ export const useChatStore = create<ChatState>((set, get) => ({
   setSkill: (dir, content) => set({ skillDir: dir, skillContent: content }),
 
   clearSkill: () => set({ skillDir: undefined, skillContent: undefined }),
+
+  confirmCommand: (allow) => confirmAction(allow),
 }));
+
+/** Bucle del modo agente (v2.7): stream → herramientas → resultados → repetir.
+ * Se pausa cuando hay comandos por autorizar y lo reanuda confirmCommand. */
+async function runAgentTurn(
+  chatId: string,
+  model: string,
+  generationId: string,
+): Promise<void> {
+  const store = useChatStore;
+  for (let round = 0; round < MAX_AGENT_ROUNDS; round++) {
+    const s = store.getState();
+    if (s.pendingStop) break;
+    const chat = s.chats.find((c) => c.id === chatId);
+    if (!chat) break;
+    ensureAssistantPlaceholder(chatId);
+    setGenerating(generationId);
+    try {
+      await streamChat(
+        {
+          id: generationId,
+          ollamaUrl: s.ollamaUrl,
+          model,
+          think: s.models.find((m) => m.id === model)?.canThink ?? true,
+          messages: buildMessages(chat, s.agentSystemCtx, s.agentFolderCtx),
+        },
+        (c) => store.getState().handleChunk(c),
+      );
+    } catch (e) {
+      store.getState().handleChunk({ type: 'error', id: generationId, message: String(e) });
+      break;
+    }
+    const after = store.getState().chats.find((c) => c.id === chatId);
+    const reply = after?.messages.filter((m) => m.role === 'assistant').slice(-1)[0]?.content ?? '';
+    if (store.getState().pendingStop) break;
+    const calls = extractToolCalls(reply);
+    if (calls.length === 0) break; // respuesta final: turno terminado
+    const results: { label: string; ok: boolean; output: string }[] = [];
+    const deferred: ToolCall[] = [];
+    for (const call of calls) {
+      if (needsConfirmation(call)) {
+        deferred.push(call);
+        continue;
+      }
+      const r = await executeTool(call);
+      results.push({ label: describeCall(call), ok: r.ok, output: r.output });
+    }
+    if (deferred.length > 0) {
+      setGenerating(generationId); // queda en "generando" hasta que el usuario autorice
+      store.setState({ pendingCommand: deferred[0], queuedCommands: deferred.slice(1) });
+      return;
+    }
+    if (results.length === 0) break;
+    appendToolResults(chatId, results);
+  }
+  if (store.getState().pendingStop) store.setState({ pendingStop: false });
+}
+
+function setGenerating(generationId: string) {
+  useChatStore.setState({ isGenerating: true, generationId, pendingStop: false });
+}
+
+function ensureAssistantPlaceholder(chatId: string) {
+  const st = useChatStore.getState();
+  const chat = st.chats.find((c) => c.id === chatId);
+  if (!chat) return;
+  const last = chat.messages[chat.messages.length - 1];
+  const alreadyPlaceholder =
+    last && last.role === 'assistant' && !last.content && !last.thinking && !last.error;
+  if (alreadyPlaceholder) return;
+  const now = Date.now();
+  useChatStore.setState((s) => ({
+    chats: s.chats.map((c) =>
+      c.id === chatId
+        ? {
+            ...c,
+            messages: [
+              ...c.messages,
+              { role: 'assistant' as const, content: '', thinking: '', model: '', createdAt: now },
+            ],
+          }
+        : c,
+    ),
+  }));
+}
+
+function appendToolResults(chatId: string, results: { label: string; ok: boolean; output: string }[]) {
+  const content =
+    TOOL_RESULT_MARKER +
+    '\n' +
+    results.map((r) => `${r.label} → ${r.ok ? 'ok' : 'error'}:\n${r.output}`).join('\n\n');
+  const now = Date.now();
+  useChatStore.setState((s) => ({
+    chats: s.chats.map((c) =>
+      c.id === chatId
+        ? {
+            ...c,
+            messages: [
+              ...c.messages,
+              { role: 'user' as const, content, createdAt: now },
+            ],
+            updatedAt: now,
+          }
+        : c,
+    ),
+  }));
+}
+
+async function postTurn(chatId: string, model: string, userText: string) {
+  const s = useChatStore.getState();
+  const after = s.chats.find((c) => c.id === chatId);
+  const assistantReply =
+    after?.messages.filter((m) => m.role === 'assistant').slice(-1)[0]?.content ?? '';
+  // Extracción de memoria (v2.6): hechos clave del intercambio, llamada oculta
+  void useFactsStore
+    .getState()
+    .extractAndSave(
+      s.ollamaUrl,
+      model,
+      userText,
+      assistantReply,
+      after?.projectId ?? 'general',
+      chatId,
+    );
+  // Título inteligente (v2.6): el modelo nombra la conversación por su tema
+  const genericTitle =
+    !after || after.title === 'Chat nuevo' || after.title.slice(0, 40) === userText.slice(0, 40);
+  if (genericTitle && assistantReply.length > 40) {
+    void generateTitle(s.ollamaUrl, model, userText, assistantReply).then((title) => {
+      if (!title) return;
+      useChatStore.setState((st) => ({
+        chats: st.chats.map((c) => (c.id === chatId ? { ...c, title } : c)),
+      }));
+      void useChatStore.getState().scheduleSave();
+    });
+  }
+}
+
+/** Autoriza (o rechaza) el comando pendiente y reanuda el bucle del agente. */
+async function confirmAction(allow: boolean): Promise<void> {
+  const s = useChatStore.getState();
+  const call = s.pendingCommand;
+  const chatId = s.activeChatId;
+  const chat = s.chats.find((c) => c.id === chatId);
+  if (!call || !chat || !chatId) {
+    useChatStore.setState({ pendingCommand: null, queuedCommands: [] });
+    return;
+  }
+  const outcome = allow
+    ? await executeTool(call)
+    : { call, ok: false, output: 'El usuario rechazó el comando.' };
+  const generationId = s.generationId ?? uid();
+  const model = chat.model;
+  useChatStore.setState({
+    toolLog: [
+      { label: describeCall(call), ok: outcome.ok, output: outcome.output, ts: Date.now() },
+      ...s.toolLog,
+    ].slice(0, 100),
+    pendingCommand: null,
+    queuedCommands: [],
+    generationId,
+  });
+  appendToolResults(chatId, [{ label: describeCall(call), ok: outcome.ok, output: outcome.output }]);
+  await runAgentTurn(chatId, model, generationId);
+}

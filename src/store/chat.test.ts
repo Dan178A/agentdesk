@@ -1,6 +1,6 @@
 import '../test/mock-ipc';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { useChatStore, buildMessages } from '../store/chat';
+import { useChatStore, buildMessages, TOOL_RESULT_MARKER } from '../store/chat';
 import { usePreviewStore } from '../store/preview';
 import { useMemoryStore } from '../store/memory';
 import { onInvoke, resetIpc, countCalls, ipcCalls } from '../test/mock-ipc';
@@ -289,6 +289,96 @@ describe('store de chat', () => {
     ]);
     await useChatStore.getState().sendMessage('hola', MODEL);
     expect(useChatStore.getState().chats[0].tokensUsed).toBe(128);
+  });
+
+  // Regression: modo agente (v2.7) — /qa-adjacente
+  const TOOL_REPLY =
+    'Investigo:\n```tool\n{"tool":"search_folder","args":{"path":"C:/memoria","query":"dropaudio"}}\n```';
+  const FINAL_REPLY = 'Según lo encontrado: KZ cuesta 399 USD.';
+
+  describe('modo agente', () => {
+    beforeEach(() => {
+      onInvoke('search_files', async () => [
+        { file: 'proyectos/dropaudio.md', line: 2, content: 'KZ cuesta 399 USD' },
+      ]);
+    });
+
+    it('ronda con herramienta: busca, inyecta resultados y responde al final', async () => {
+      useChatStore.setState({ agentMode: true });
+      const handlers: ((a: Record<string, unknown>) => Promise<void>)[] = [
+        async (a) => {
+          const ch = a.onChunk as { onmessage: ((m: Chunk) => void) | null };
+          ch.onmessage?.({ type: 'content', delta: TOOL_REPLY, id: a.id as string } as unknown as Chunk);
+          ch.onmessage?.({ type: 'done', thinkingMs: 5, id: a.id as string } as unknown as Chunk);
+        },
+        async (a) => {
+          const ch = a.onChunk as { onmessage: ((m: Chunk) => void) | null };
+          for (const m of (a.messages as { role: string; content: string }[])) {
+            if (m.content.includes(TOOL_RESULT_MARKER)) {
+              expect(m.content).toContain('proyectos/dropaudio.md'); // resultado inyectado
+            }
+          }
+          ch.onmessage?.({ type: 'content', delta: FINAL_REPLY, id: a.id as string } as unknown as Chunk);
+          ch.onmessage?.({ type: 'done', thinkingMs: 5, id: a.id as string } as unknown as Chunk);
+        },
+      ];
+      let i = 0;
+      onInvoke('chat_start', async (a) => {
+        await handlers[Math.min(i, handlers.length - 1)](a as Record<string, unknown>);
+        i += 1;
+      });
+      await useChatStore.getState().sendMessage('cuánto cuesta el KZ-900', MODEL);
+      const call = ipcCalls().find((c) => c.cmd === 'search_files')!;
+      expect(call.args.query).toBe('dropaudio');
+      const msgs = useChatStore.getState().chats[0].messages;
+      expect(msgs.some((m) => m.role === 'user' && m.content.startsWith(TOOL_RESULT_MARKER))).toBe(true);
+      expect(msgs[msgs.length - 1].content).toBe(FINAL_REPLY);
+      expect(useChatStore.getState().isGenerating).toBe(false);
+      expect(useChatStore.getState().toolLog[0].ok).toBe(true);
+    });
+
+    it('el system prompt del agente va solo en modo agente', async () => {
+      useChatStore.setState({ agentMode: false });
+      scriptChat([{ type: 'content', id: 'x', delta: 'hola' }, { type: 'done', id: 'x', thinkingMs: 1 }]);
+      await useChatStore.getState().sendMessage('hola', MODEL);
+      const call = ipcCalls().find((c) => c.cmd === 'chat_start')!;
+      const sys = (call.args.messages as { role: string; content: string }[]).filter((m) => m.role === 'system');
+      expect(sys.every((m) => !m.content.includes('MODO AGENTE'))).toBe(true);
+
+      useChatStore.setState({ agentMode: true });
+      scriptChat([]);
+      await useChatStore.getState().sendMessage('hola', MODEL);
+      const call2 = ipcCalls().filter((c) => c.cmd === 'chat_start')[1]!;
+      const sys2 = (call2.args.messages as { role: string; content: string }[])[0];
+      expect(sys2.content).toContain('MODO AGENTE');
+    });
+
+    it('run_command queda PENDIENTE de autorizar; rechazar inyecta el fallo y reanuda', async () => {
+      useChatStore.setState({ agentMode: true });
+      const CMD_REPLY =
+        'Ejecuto:\n```tool\n{"tool":"run_command","args":{"cmd":"dir C:/dropaudio"}}\n```';
+      let n = 0;
+      onInvoke('chat_start', async (a) => {
+        n += 1;
+        const ch = a.onChunk as { onmessage: ((m: Chunk) => void) | null };
+        const delta = n === 1 ? CMD_REPLY : FINAL_REPLY;
+        ch.onmessage?.({ type: 'content', delta, id: a.id as string } as unknown as Chunk);
+        ch.onmessage?.({ type: 'done', thinkingMs: 5, id: a.id as string } as unknown as Chunk);
+      });
+      // Primera ronda: queda pausada esperando autorización
+      await useChatStore.getState().sendMessage('lista los archivos', MODEL);
+      expect(useChatStore.getState().pendingCommand?.args.cmd).toBe('dir C:/dropaudio');
+      expect(useChatStore.getState().isGenerating).toBe(true);
+      expect(useChatStore.getState().toolLog.length).toBe(0); // aún no se ejecutó
+
+      // Rechazar → resultado con el rechazo y reanudación hasta la respuesta final
+      await useChatStore.getState().confirmCommand(false);
+      expect(useChatStore.getState().pendingCommand).toBeNull();
+      const msgs = useChatStore.getState().chats[0].messages;
+      expect(msgs.some((m) => m.content.includes('El usuario rechazó el comando'))).toBe(true);
+      expect(msgs[msgs.length - 1].content).toBe(FINAL_REPLY);
+      expect(useChatStore.getState().toolLog[0].ok).toBe(false);
+    });
   });
 
   it('(v1.1) retryLast elimina el assistant fallido y reenvía el user', async () => {
