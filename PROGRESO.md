@@ -1,13 +1,14 @@
 # AgentDesk — Progreso del proyecto
 
-**Fecha de estado:** 2026-11-22 · **Versión:** 0.1.0 · **Rama:** `feature/agentdesk`
+**Fecha de estado:** 2026-11-22 · **Versión:** 0.2.0 (v2.0 Workbench) · **Rama:** `feature/agentdesk`
 
 ## ¿Qué es?
 
 **AgentDesk** — app de escritorio estilo Claude Desktop que funciona como wrapper de chat contra tu
 Ollama local, con panel de pensamiento del modelo en tiempo real, menú `/` que carga tus skills de
-`~/.claude/skills`, equipos de agentes en paralelo (manual u orquestados por un líder) y medidor de
-contexto con tokens reales.
+`~/.claude/skills`, equipos de agentes en paralelo (manual u orquestados por un líder), medidor de
+contexto con tokens reales, **panel de vista previa lateral, adjuntos, creador de interfaces
+(`/interfaz`) y logo propio de constelación**.
 
 ## Stack
 
@@ -47,8 +48,12 @@ npm run tauri build  # release
 | 15 | Pulido: reduced-motion global, `tauri build` release verde | ✅ |
 | 16 | **v1.1** Meter de contexto (tokens reales de Ollama) + Reintentar por mensaje | ✅ |
 | 17 | **v1.1** Proyectos (cubierto por la Task 11 extendida) | ✅ |
+| 18 | **v2.0** Logo «constelación» + íconos Tauri + empty states con chips | ✅ |
+| 19 | **v2.0** Panel de vista previa lateral (HTML iframe, md, CSV, imágenes) | ✅ |
+| 20 | **v2.0** Adjuntar archivos (plugin dialog + read/write_file en Rust) | ✅ |
+| 21 | **v2.0** Creador de interfaces `/interfaz` con auto-open en el panel | ✅ |
 
-**Tests:** 95/95 TS (Vitest) · 13/13 Rust (cargo test) · typecheck `tsc --strict` limpio
+**Tests:** 109/109 TS (Vitest) · 18/18 Rust (cargo test) · typecheck `tsc --strict` limpio
 
 ## Funciones implementadas
 
@@ -58,6 +63,13 @@ npm run tauri build  # release
 - ✅ Selector de modelo con los 3 alias arriba + todos los modelos de `ollama list`
 - ✅ Multiagentes: modo manual (todos en paralelo) y modo orquestado (el líder glm-max divide la meta
   en subtareas JSON, despacha en paralelo y redacta la síntesis final); fallo de un agente no tumba al resto
+- ✅ **Panel de vista previa** (v2.0): columna derecha que renderiza HTML en iframe sandbox,
+  markdown, CSV como tabla e imágenes; los mensajes con bloques html/md/csv ganan «Abrir en panel»
+  y el panel guarda el resultado como archivo (`Guardar como…`)
+- ✅ **Adjuntos** (v2.0): botón de clip → diálogo nativo; los textos se inyectan al mensaje,
+  las imágenes abren en el panel (límite 50 MB, extensiones de texto/código/imágenes)
+- ✅ **`/interfaz`** (v2.0): el modelo genera un HTML completo y el panel lo muestra live con
+  un click; auto-open al terminar la generación
 - ✅ **Meter de contexto**: barra de tokens usados/total (límite real del modelo), ámbar ≥80%, rojo ≥95%
 - ✅ Botón **Reintentar** en mensajes caídos (reenvía el último mensaje) y en el banner de Ollama caído
 - ✅ Sidebar expandible/colapsable con **proyectos**, chats por proyecto, tema claro/oscuro
@@ -74,14 +86,18 @@ npm run tauri build  # release
 3. **NDJSON se parsea en Rust** (con test de línea partida); TS recibe chunks tipados por Channel.
 4. **Tokens reales** en vez de estimación: el done de Ollama trae `prompt_eval_count` + `eval_count`.
 5. **Renombrar chat por doble click** quedó fuera de v1 (títulos automáticos; los proyectos sí se renombran).
-6. Icono placeholder coral con "A" (reemplazable con `npx tauri icon <tu-png>`).
+6. Icono **constelación** (nodo orquestador + 3 agentes, coral con degradado) — fuente en
+   `src-tauri/icons/icon-source.svg`; componente React en `src/assets/AgentLogo.tsx`.
 
 ## Pendiente
 
-- [ ] **E2E manual contigo** con modelos reales: chat con thinking, cargar `/ui-ux-pro-max`,
-      broadcast a 2 agentes y una orquestación (la ventana dev está corriendo para probarlo)
+- [ ] **E2E manual contigo** con modelos reales: chat con thinking, `/ui-ux-pro-max`,
+      broadcast a 2 agentes, orquestación, adjuntar un .md, abrir un HTML en el panel y
+      `/interfaz` end-to-end (la ventana dev sigue disponible)
+- [ ] QA del 2026-11-22: reporte en `.gstack/qa-reports/` (v2.0 salió de sus hallazgos)
 - [ ] Merge de `feature/agentdesk` a `main` cuando lo apruebes
-- [ ] Opcional después: tool-use real de los agentes, truncado automático de contexto, adjuntos
+- [ ] Opcional después: tool-use real de los agentes (escriben archivos desde los equipos),
+      truncado automático de contexto, historial de `/interfaz` por proyecto
 
 ## Documentación del proyecto
 
