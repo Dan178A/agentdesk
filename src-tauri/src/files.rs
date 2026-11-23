@@ -25,7 +25,7 @@ const MAX_BYTES: u64 = 50 * 1024 * 1024;
 const IGNORED_DIRS: [&str; 9] = [
     ".git", "node_modules", "target", "dist", "build", ".next", "__pycache__", ".venv", "vendor",
 ];
-const MAX_DIR_FILES: usize = 300;
+const MAX_DIR_FILES: usize = 1000;
 const MAX_DIR_FILE_BYTES: u64 = 512 * 1024;
 
 #[derive(Deserialize)]
@@ -283,12 +283,12 @@ mod tests {
     fn carpeta_respeta_limite_de_archivos() {
         let base = std::env::temp_dir().join(format!("agentdesk-cap-{}", std::process::id()));
         fs::create_dir_all(&base).unwrap();
-        for i in 0..350 {
+        for i in 0..1050 {
             fs::write(base.join(format!("f{i}.txt")), "x").unwrap();
         }
         let files = read_dir_files_sync(&base.to_string_lossy()).unwrap();
         assert!(files.len() >= MAX_DIR_FILES); // recortado al límite
-        assert!(files.len() < 350);
+        assert!(files.len() < 1050);
         fs::remove_dir_all(&base).ok();
     }
 }

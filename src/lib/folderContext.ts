@@ -8,8 +8,9 @@ export interface FolderRoot {
   files: FileRead[];
 }
 
-/** Presupuesto por mensaje de envío de carpetas. */
+/** Presupuesto por mensaje de envío de carpetas y tope de líneas del índice. */
 export const FOLDER_CONTEXT_BUDGET = 30_000;
+export const INDEX_MAX_ENTRIES = 150;
 
 /** Consulta → tokens de búsqueda (≥3 chars, en minúsculas). */
 function queryTokens(query: string): string[] {
@@ -55,14 +56,16 @@ export function buildFolderSystem(
   let used = 0;
 
   for (const root of roots) {
+    // índice acotado: con 900+ archivos, listarlos todos comería el presupuesto
+    const listed = root.files.slice(0, INDEX_MAX_ENTRIES);
+    const more = root.files.length - listed.length;
     const head =
       `El usuario adjuntó la carpeta «${root.name}» (${root.files.length} archivos de texto). ` +
       'A continuación van los archivos relevantes para la petición, por orden de coincidencia. ' +
       'Si necesitas otro archivo del índice, pídelo por nombre en tu respuesta.\n\n' +
-      `Índice de ${root.name}:\n` +
-      root.files
-        .map((f) => `- ${f.name} (${f.sizeBytes} B)`)
-        .join('\n');
+      `Índice de ${root.name} (${root.files.length}):\n` +
+      listed.map((f) => `- ${f.name} (${f.sizeBytes} B)`).join('\n') +
+      (more > 0 ? `\n… y ${more} archivos más (pídelos por nombre si los necesitas)` : '');
     parts.push(head);
     used += head.length;
 

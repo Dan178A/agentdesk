@@ -45,6 +45,21 @@ describe('buildFolderSystem', () => {
     expect(text).toContain('proyectos/mercatech.md —'); // 'mercado' también aparece en su contenido
   });
 
+  it('índice acotado a 150 entradas con aviso de «y N archivos más»', () => {
+    const grande: FolderRoot = {
+      ...ROOT,
+      files: Array.from({ length: 400 }, (_, i) => file(`f/${String(i).padStart(4, '0')}.md`, `contenido ${i} dropaudio`)),
+    };
+    const text = buildFolderSystem([grande], 'consultas sin match', 200_000);
+    expect(text).toContain('(400 archivos de texto)');
+    expect(text).toContain('… y 250 archivos más');
+    expect(text).toContain('f/0149.md');
+    expect(text).not.toContain('f/0150.md');
+    // y los relevantes se buscan entre los 400, no solo los 150 del índice
+    const textoConMatch = buildFolderSystem([grande], 'contenido 0399', 200_000);
+    expect(textoConMatch).toContain('— archivo: f/0399.md —');
+  });
+
   it('sin coincidencias → índice + instrucción de pedir archivo', () => {
     const text = buildFolderSystem([ROOT], 'receta de brownie');
     expect(text).toContain('Ningún archivo coincide');
